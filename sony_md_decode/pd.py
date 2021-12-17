@@ -65,6 +65,8 @@ class Decoder(srd.Decoder):
 			value += bitData[3][currentBit][3]
 			currentBit += 1
 			bitsLeft -= 1
+
+		self.checksum ^= value
 		
 		if numBits % 8 == 0:
 			self.put(valueStart, valueEnd, self.out_ann,
@@ -92,6 +94,8 @@ class Decoder(srd.Decoder):
 			shiftBy += 1
 			currentBit += 1
 			bitsLeft -= 1
+
+		self.checksum ^= value
 		
 		if numBits % 8 == 0:
 			self.put(valueStart, valueEnd, self.out_ann,
@@ -124,12 +128,13 @@ class Decoder(srd.Decoder):
 			currentBit += 16
 
 			self.debugOutHex += "   "
+			self.checksum = 0
 			
 			if bitData[3][8][3] == 0:
 				self.put(bitData[3][8][0], bitData[3][8][2], self.out_ann,
 					[2, ['11-byte Data Block Flag', 'Y11B']])
-				self.put(bitData[3][currentBit][0], bitData[3][(currentBit+79)][2], self.out_ann,
-					[1, ['10-byte data block']])
+				self.put(bitData[3][currentBit][0], bitData[3][(currentBit+87)][2], self.out_ann,
+					[1, ['11-byte data block']])
 				self.putValueLSBFirst(bitData, currentBit, 8)
 				self.putValueLSBFirst(bitData, currentBit+8, 8)
 				self.putValueLSBFirst(bitData, currentBit+16, 8)
@@ -141,7 +146,7 @@ class Decoder(srd.Decoder):
 				self.putValueLSBFirst(bitData, currentBit+64, 8)
 				self.putValueLSBFirst(bitData, currentBit+72, 8)
 				self.put(bitData[3][currentBit+80][0], bitData[3][currentBit+87][2], self.out_ann,
-					[1, ['Checksum']])
+					[2, ['Checksum, calculated value 0x%02X' % self.checksum]])
 				self.putValueLSBFirst(bitData, currentBit+80, 8)
 				self.debugOutHex += "   "
 				currentBit += 88
@@ -176,6 +181,7 @@ class Decoder(srd.Decoder):
 			currentBit += 8
 
 			self.debugOutHex += "   "
+			self.checksum = 0
 
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+62][2], self.out_ann,
 				[1, ['63-bit block']])
@@ -207,6 +213,8 @@ class Decoder(srd.Decoder):
 
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+8][2], self.out_ann,
 				[1, ['Checksum']])
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+8][2], self.out_ann,
+					[2, ['Checksum, calculated value 0o%03o' % self.checksum]])
 			self.putValueLSBFirst(bitData, currentBit, 9)
 			currentBit += 9
 
@@ -224,6 +232,8 @@ class Decoder(srd.Decoder):
 	
 	def reset(self):
 		self.state = 'IDLE'
+
+		self.checksum = 0
 
 		self.debugOutHex = ""
 		self.debugOutBinary = ""
