@@ -235,10 +235,10 @@ class Decoder(srd.Decoder):
 		self.debugOutHex += "   "
 		self.checksum = 0
 
-		if bitData[2] == 104:
+		if (bitData[3][8][3] == 0) and (bitData[3][12][3] == 0):
 			self.putPlayerDataBlock(bitData, currentBit)
 			currentBit += 88
-		elif bitData[2] == 115:
+		elif (bitData[3][4][3] == 1) and (bitData[3][12][3] == 1):
 			self.putRemoteDataBlock(bitData, currentBit)
 			currentBit += 99
 
