@@ -112,16 +112,7 @@ class Decoder(srd.Decoder):
 				[2, ['Value (Low %d bits): 0x%X' % (numBits, value)]])
 			self.debugOutHex += ('0x%X ' % value)
 
-		
-
-	def expandMessage(self, bitData):
-		currentBit = 0
-
-		self.putBinaryMSBFirst(bitData, 0, bitData[2])
-
-		self.debugOutHex += str(bitData[2])
-		self.debugOutHex += "   "
-
+	def putRemoteHeader(self, bitData, currentBit):
 		self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 			[1, ['Header from remote']])
 		self.putValueLSBFirst(bitData, currentBit, 8)
@@ -143,10 +134,8 @@ class Decoder(srd.Decoder):
 		else:
 			self.put(bitData[3][currentBit+7][0], bitData[3][currentBit+7][2], self.out_ann,
 				[6, ['Remote NOT Present?']])
-		currentBit += 8
-
-		self.debugOutHex += "   "
-
+	
+	def putPlayerHeader(self, bitData, currentBit):
 		self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 			[1, ['Header from player']])
 		self.putValueLSBFirst(bitData, currentBit, 8)
@@ -164,78 +153,95 @@ class Decoder(srd.Decoder):
 				[6, ['Player does not cede the bus to remote after header?', 'PNR']])
 		self.put(bitData[3][currentBit+7][0], bitData[3][currentBit+7][2], self.out_ann,
 			[3, ['Player Present?']])
+	
+	def putPlayerDataBlock(self, bitData, currentBit):
+		self.put(bitData[3][currentBit][0], bitData[3][(currentBit+87)][2], self.out_ann,
+			[1, ['Player data block?']])
+		
+		self.putValueLSBFirst(bitData, currentBit, 8)
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+			[3, ['Packet type?']])
+
+		self.putValueLSBFirst(bitData, currentBit+8, 8)
+		self.putValueLSBFirst(bitData, currentBit+16, 8)
+		self.putValueLSBFirst(bitData, currentBit+24, 8)
+
+		self.putValueLSBFirst(bitData, currentBit+32, 8)
+		if self.values[2] == 0xA0:
+			self.put(bitData[3][currentBit+32][0], bitData[3][currentBit+39][2], self.out_ann,
+				[3, ['Track number']])
+
+		self.putValueLSBFirst(bitData, currentBit+40, 8)
+		self.putValueLSBFirst(bitData, currentBit+48, 8)
+		self.putValueLSBFirst(bitData, currentBit+56, 8)
+		self.putValueLSBFirst(bitData, currentBit+64, 8)
+		self.putValueLSBFirst(bitData, currentBit+72, 8)
+		self.put(bitData[3][currentBit+80][0], bitData[3][currentBit+87][2], self.out_ann,
+			[3, ['Checksum, calculated value 0x%02X' % self.checksum]])
+		self.putValueLSBFirst(bitData, currentBit+80, 8)
+	
+	def putRemoteDataBlock(self, bitData, currentBit):
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit+62][2], self.out_ann,
+			[1, ['63-bit block from remote?']])
+		self.putValueLSBFirst(bitData, currentBit, 9)
+		self.putValueLSBFirst(bitData, currentBit+9, 9)
+		self.putValueLSBFirst(bitData, currentBit+18, 9)
+		self.putValueLSBFirst(bitData, currentBit+27, 9)
+		self.putValueLSBFirst(bitData, currentBit+36, 9)
+		self.putValueLSBFirst(bitData, currentBit+45, 9)
+		self.putValueLSBFirst(bitData, currentBit+54, 9)
+		currentBit += 63
+
+		self.debugOutHex += "   "
+
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit+17][2], self.out_ann,
+			[1, ['18-bit block from remote?']])
+		self.putValueLSBFirst(bitData, currentBit, 9)
+		self.putValueLSBFirst(bitData, currentBit+9, 9)
+		currentBit += 18
+
+		self.debugOutHex += "   "
+
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit+8][2], self.out_ann,
+			[1, ['9-bit block from remote?']])
+		self.putValueLSBFirst(bitData, currentBit, 9)
+		currentBit += 9
+
+		self.debugOutHex += "   "
+
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit+8][2], self.out_ann,
+			[1, ['Checksum']])
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit+8][2], self.out_ann,
+				[3, ['Checksum, calculated value 0o%03o' % self.checksum]])
+		self.putValueLSBFirst(bitData, currentBit, 9)
+		currentBit += 9
+
+	def expandMessage(self, bitData):
+		currentBit = 0
+
+		self.putBinaryMSBFirst(bitData, 0, bitData[2])
+
+		self.debugOutHex += str(bitData[2])
+		self.debugOutHex += "   "
+
+		self.putRemoteHeader(bitData, currentBit)
+		currentBit += 8
+
+		self.debugOutHex += "   "
+
+		self.putPlayerHeader(bitData, currentBit)
 		currentBit += 8
 
 		self.debugOutHex += "   "
 		self.checksum = 0
 
 		if bitData[2] == 104:
-			self.put(bitData[3][currentBit][0], bitData[3][(currentBit+87)][2], self.out_ann,
-				[1, ['Player data block?']])
-			
-			self.putValueLSBFirst(bitData, currentBit, 8)
-			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
-				[3, ['Packet type?']])
-
-			self.putValueLSBFirst(bitData, currentBit+8, 8)
-			self.putValueLSBFirst(bitData, currentBit+16, 8)
-			self.putValueLSBFirst(bitData, currentBit+24, 8)
-
-			self.putValueLSBFirst(bitData, currentBit+32, 8)
-			if self.values[2] == 0xA0:
-				self.put(bitData[3][currentBit+32][0], bitData[3][currentBit+39][2], self.out_ann,
-					[3, ['Track number']])
-
-			self.putValueLSBFirst(bitData, currentBit+40, 8)
-			self.putValueLSBFirst(bitData, currentBit+48, 8)
-			self.putValueLSBFirst(bitData, currentBit+56, 8)
-			self.putValueLSBFirst(bitData, currentBit+64, 8)
-			self.putValueLSBFirst(bitData, currentBit+72, 8)
-			self.put(bitData[3][currentBit+80][0], bitData[3][currentBit+87][2], self.out_ann,
-				[3, ['Checksum, calculated value 0x%02X' % self.checksum]])
-			self.putValueLSBFirst(bitData, currentBit+80, 8)
-			self.debugOutHex += "   "
+			self.putPlayerDataBlock(bitData, currentBit)
 			currentBit += 88
 		elif bitData[2] == 115:
-			self.put(bitData[3][currentBit][0], bitData[3][currentBit+62][2], self.out_ann,
-				[1, ['63-bit block from remote?']])
-			self.putValueLSBFirst(bitData, currentBit, 9)
-			self.putValueLSBFirst(bitData, currentBit+9, 9)
-			self.putValueLSBFirst(bitData, currentBit+18, 9)
-			self.putValueLSBFirst(bitData, currentBit+27, 9)
-			self.putValueLSBFirst(bitData, currentBit+36, 9)
-			self.putValueLSBFirst(bitData, currentBit+45, 9)
-			self.putValueLSBFirst(bitData, currentBit+54, 9)
-			currentBit += 63
+			self.putRemoteDataBlock(bitData, currentBit)
+			currentBit += 99
 
-			self.debugOutHex += "   "
-
-			self.put(bitData[3][currentBit][0], bitData[3][currentBit+17][2], self.out_ann,
-				[1, ['18-bit block from remote?']])
-			self.putValueLSBFirst(bitData, currentBit, 9)
-			self.putValueLSBFirst(bitData, currentBit+9, 9)
-			currentBit += 18
-
-			self.debugOutHex += "   "
-
-			self.put(bitData[3][currentBit][0], bitData[3][currentBit+8][2], self.out_ann,
-				[1, ['9-bit block from remote?']])
-			self.putValueLSBFirst(bitData, currentBit, 9)
-			currentBit += 9
-
-			self.debugOutHex += "   "
-
-			self.put(bitData[3][currentBit][0], bitData[3][currentBit+8][2], self.out_ann,
-				[1, ['Checksum']])
-			self.put(bitData[3][currentBit][0], bitData[3][currentBit+8][2], self.out_ann,
-					[3, ['Checksum, calculated value 0o%03o' % self.checksum]])
-			self.putValueLSBFirst(bitData, currentBit, 9)
-			currentBit += 9
-
-			#self.debugOutHex += "   "
-
-					
-		
 		self.put(bitData[0], bitData[1], self.out_ann,
 				[4, [self.debugOutHex]])
 		self.debugOutHex = ""
