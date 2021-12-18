@@ -142,21 +142,29 @@ class Decoder(srd.Decoder):
 		self.put(self.lastedgesample, self.newedgesample, self.out_ann,
 				[0, ['Sync pulse', 'S']])
 	
-	def putExtra11BitsFlag(self):
+	def putRemoteHasData(self):
 		self.put(self.databitstart, self.databitend, self.out_ann,
-				[0, ['11-bit Data Block', 'Y11b']])
+				[0, ['Remote HAS data to send', 'RY']])
 	
-	def putNoExtra11BitsFlag(self):
+	def putRemoteHasNoData(self):
 		self.put(self.databitstart, self.databitend, self.out_ann,
-				[0, ['No 11-bit Data Block', 'N11b']])
+				[0, ['Remote has NO data to send', 'RN']])
 	
-	def putExtra11BytesFlag(self):
+	def putPlayerHasData(self):
 		self.put(self.databitstart, self.databitend, self.out_ann,
-				[0, ['11-byte Data Block', 'Y11B']])
+				[0, ['Player HAS data to send', 'PY']])
 	
-	def putNoExtra11BytesFlag(self):
+	def putPlayerHasNoData(self):
 		self.put(self.databitstart, self.databitend, self.out_ann,
-				[0, ['No 11-byte Data Block', 'N11B']])
+				[0, ['Player has NO data to send', 'PN']])
+	
+	def putPlayerCedesBusToRemote(self):
+		self.put(self.databitstart, self.databitend, self.out_ann,
+				[0, ['Player CEDES bus to Remote', 'RDB']])
+	
+	def putPlayerDoesNotCedeBusToRemote(self):
+		self.put(self.databitstart, self.databitend, self.out_ann,
+				[0, ['Player does NOT cede bus to Remote', 'PDB']])
 	
 	def putZeroBit(self):
 		self.messageBitData.append([self.databitstart, self.lastedgesample, self.databitend, 0])
@@ -190,6 +198,9 @@ class Decoder(srd.Decoder):
 
 	def returnToIdle(self):
 		self.state = 'IDLE'
+		self.playerHasData = False
+		self.remoteHasData = False
+		self.playerCedesBus = False
 		self.dataBitCount = 0
 		self.expectedBitCount = 16
 		self.messageSyncData = []
@@ -202,6 +213,10 @@ class Decoder(srd.Decoder):
 		self.lastedgestate = False
 		self.newedgesample = 0
 		self.newedgestate = False
+
+		self.playerHasData = False
+		self.remoteHasData = False
+		self.playerCedesBus = False
 
 		self.pulselength = 0
 
@@ -327,11 +342,20 @@ class Decoder(srd.Decoder):
 					self.putOneBit()
 
 					if self.dataBitCount == 5:
-						self.putExtra11BitsFlag()
-						self.expectedBitCount += 11
+						self.putRemoteHasData()
+						self.remoteHasData = True
 
 					if self.dataBitCount == 9:
-						self.putNoExtra11BytesFlag()
+						self.putPlayerHasNoData()
+					
+					if self.dataBitCount == 13:
+						self.putPlayerCedesBusToRemote()
+						self.playerCedesBus = True
+						if self.remoteHasData and self.playerCedesBus:
+							self.expectedBitCount = 115
+						elif self.playerHasData and not self.playerCedesBus:
+							self.expectedBitCount = 104
+
 					
 					if self.dataBitCount == self.expectedBitCount:
 						self.packetendsample = self.newedgesample
@@ -346,11 +370,18 @@ class Decoder(srd.Decoder):
 					self.putZeroBit()
 
 					if self.dataBitCount == 5:
-						self.putNoExtra11BitsFlag()
+						self.putRemoteHasNoData()
 
 					if self.dataBitCount == 9:
-						self.putExtra11BytesFlag()
-						self.expectedBitCount += (11*8)
+						self.putPlayerHasData()
+						self.playerHasData = True
+
+					if self.dataBitCount == 13:
+						self.putPlayerDoesNotCedeBusToRemote()
+						if self.remoteHasData and self.playerCedesBus:
+							self.expectedBitCount = 115
+						elif self.playerHasData and not self.playerCedesBus:
+							self.expectedBitCount = 104
 					
 					if self.dataBitCount == self.expectedBitCount:
 						self.packetendsample = self.newedgesample
