@@ -24,12 +24,13 @@ class Decoder(srd.Decoder):
 		('data-field', 'Data Field'),
 		('debug', 'Debug'),
 		('debug-two', 'Debug2'),
+		('data-field-negative', 'Data Field (Negative)')
 	)
 	annotation_rows = (
 		('informational', 'Informational', (0,)),
 		('message-segments', 'Message Segments', (1,)),
-		('bytes', 'Bytes', (3,)),
-		('fields', 'Data Fields', (2,)),
+		('bytes', 'Bytes', (2,)),
+		('fields', 'Data Fields', (3,6,)),
 		('debugs', 'Debugs', (4,)),
 		('debugs-two', 'Debugs 2', (5,)),
 	)
@@ -70,15 +71,15 @@ class Decoder(srd.Decoder):
 		
 		if numBits % 8 == 0:
 			self.put(valueStart, valueEnd, self.out_ann,
-				[3, ['Value: 0x%02X' % value]])
+				[2, ['Value: 0x%02X' % value]])
 			self.debugOutHex += ('0x%02X ' % value)
 		elif numBits % 9 == 0:
 			self.put(valueStart, valueEnd, self.out_ann,
-				[3, ['Value: 0o%03o' % value]])
+				[2, ['Value: 0o%03o' % value]])
 			self.debugOutHex += ('0o%03o ' % value)
 		else:
 			self.put(valueStart, valueEnd, self.out_ann,
-				[3, ['Value (Low %d bits): 0x%X' % (numBits, value)]])
+				[2, ['Value (Low %d bits): 0x%X' % (numBits, value)]])
 			self.debugOutHex += ('0x%X ' % value)
 	
 	def putValueLSBFirst(self, bitData, startBit, numBits):
@@ -96,18 +97,19 @@ class Decoder(srd.Decoder):
 			bitsLeft -= 1
 
 		self.checksum ^= value
+		self.values.append(value)
 		
 		if numBits % 8 == 0:
 			self.put(valueStart, valueEnd, self.out_ann,
-				[3, ['Value: 0x%02X' % value]])
+				[2, ['Value: 0x%02X' % value]])
 			self.debugOutHex += ('0x%02X ' % value)
 		elif numBits % 9 == 0:
 			self.put(valueStart, valueEnd, self.out_ann,
-				[3, ['Value: 0o%03o' % value]])
+				[2, ['Value: 0o%03o' % value]])
 			self.debugOutHex += ('0o%03o ' % value)
 		else:
 			self.put(valueStart, valueEnd, self.out_ann,
-				[3, ['Value (Low %d bits): 0x%X' % (numBits, value)]])
+				[2, ['Value (Low %d bits): 0x%X' % (numBits, value)]])
 			self.debugOutHex += ('0x%X ' % value)
 
 		
@@ -120,71 +122,83 @@ class Decoder(srd.Decoder):
 		self.debugOutHex += str(bitData[2])
 		self.debugOutHex += "   "
 
-		if (bitData[2] == 104) or (bitData[2] == 16) :
-			self.put(bitData[3][0][0], bitData[3][15][2], self.out_ann,
-					[1, ['2-byte message header']])
-			self.putValueLSBFirst(bitData, 0, 8)
-			self.putValueLSBFirst(bitData, 8, 8)
-			currentBit += 16
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+			[1, ['Header from remote']])
+		self.putValueLSBFirst(bitData, currentBit, 8)
+		if bitData[3][currentBit+1][3] == 1:
+			self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+1][2], self.out_ann,
+				[3, ['Remote is "new" protocol?']])
+		else:
+			self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+1][2], self.out_ann,
+				[6, ['Remote is "old" protocol?']])
+		if bitData[3][currentBit+4][3] == 1:
+			self.put(bitData[3][currentBit+4][0], bitData[3][currentBit+4][2], self.out_ann,
+				[3, ['Remote HAS data to send?', 'RY']])
+		else:
+			self.put(bitData[3][currentBit+4][0], bitData[3][currentBit+4][2], self.out_ann,
+				[6, ['Remote has NO data to send?', 'RN']])
+		if bitData[3][currentBit+7][3] == 1:
+			self.put(bitData[3][currentBit+7][0], bitData[3][currentBit+7][2], self.out_ann,
+				[3, ['Remote Present?']])
+		else:
+			self.put(bitData[3][currentBit+7][0], bitData[3][currentBit+7][2], self.out_ann,
+				[6, ['Remote NOT Present?']])
+		currentBit += 8
 
-			self.debugOutHex += "   "
-			self.checksum = 0
+		self.debugOutHex += "   "
+
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+			[1, ['Header from player']])
+		self.putValueLSBFirst(bitData, currentBit, 8)
+		if bitData[3][currentBit][3] == 0:
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit][2], self.out_ann,
+				[3, ['Player HAS data to send?', 'PY']])
+		else:
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit][2], self.out_ann,
+				[6, ['Player has NO data to send?', 'PN']])
+		if bitData[3][currentBit+4][3] == 1:
+			self.put(bitData[3][currentBit+4][0], bitData[3][currentBit+4][2], self.out_ann,
+				[3, ['Player ACKs remote has data to send, cedes the bus after header?', 'PAR']])
+		else:
+			self.put(bitData[3][currentBit+4][0], bitData[3][currentBit+4][2], self.out_ann,
+				[6, ['Player does not cede the bus to remote after header?', 'PNR']])
+		self.put(bitData[3][currentBit+7][0], bitData[3][currentBit+7][2], self.out_ann,
+			[3, ['Player Present?']])
+		currentBit += 8
+
+		self.debugOutHex += "   "
+		self.checksum = 0
+
+		if bitData[2] == 104:
+			self.put(bitData[3][currentBit][0], bitData[3][(currentBit+87)][2], self.out_ann,
+				[1, ['Player data block?']])
 			
-			if bitData[3][8][3] == 0:
-				self.put(bitData[3][8][0], bitData[3][8][2], self.out_ann,
-					[2, ['11-byte Data Block Flag', 'Y11B']])
-				self.put(bitData[3][currentBit][0], bitData[3][(currentBit+87)][2], self.out_ann,
-					[1, ['11-byte data block']])
-				self.putValueLSBFirst(bitData, currentBit, 8)
-				self.putValueLSBFirst(bitData, currentBit+8, 8)
-				self.putValueLSBFirst(bitData, currentBit+16, 8)
-				self.putValueLSBFirst(bitData, currentBit+24, 8)
-				self.putValueLSBFirst(bitData, currentBit+32, 8)
-				self.putValueLSBFirst(bitData, currentBit+40, 8)
-				self.putValueLSBFirst(bitData, currentBit+48, 8)
-				self.putValueLSBFirst(bitData, currentBit+56, 8)
-				self.putValueLSBFirst(bitData, currentBit+64, 8)
-				self.putValueLSBFirst(bitData, currentBit+72, 8)
-				self.put(bitData[3][currentBit+80][0], bitData[3][currentBit+87][2], self.out_ann,
-					[2, ['Checksum, calculated value 0x%02X' % self.checksum]])
-				self.putValueLSBFirst(bitData, currentBit+80, 8)
-				self.debugOutHex += "   "
-				currentBit += 88
-			else:
-				self.put(bitData[3][8][0], bitData[3][8][2], self.out_ann,
-					[2, ['No 11-byte Data Block Flag', 'N11B']])
-			if bitData[3][4][3] == 1:
-				self.put(bitData[3][4][0], bitData[3][4][2], self.out_ann,
-					[2, ['11-bit Data Block Flag', 'Y11b']])
-				self.put(bitData[3][currentBit][0], bitData[3][(currentBit+10)][2], self.out_ann,
-					[1, ['11-bit data block']])
-				self.putValueLSBFirst(bitData, currentBit, 8)
-				self.putValueLSBFirst(bitData, currentBit+8, 3)
-				self.debugOutHex += "   "
-				currentBit += 11
-			else:
-				self.put(bitData[3][4][0], bitData[3][4][2], self.out_ann,
-					[2, ['No 11-bit Data Block Flag', 'N11b']])
+			self.putValueLSBFirst(bitData, currentBit, 8)
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[3, ['Packet type?']])
+
+			self.putValueLSBFirst(bitData, currentBit+8, 8)
+			self.putValueLSBFirst(bitData, currentBit+16, 8)
+			self.putValueLSBFirst(bitData, currentBit+24, 8)
+
+			self.putValueLSBFirst(bitData, currentBit+32, 8)
+			if self.values[2] == 0xA0:
+				self.put(bitData[3][currentBit+32][0], bitData[3][currentBit+39][2], self.out_ann,
+					[3, ['Track number']])
+
+			self.putValueLSBFirst(bitData, currentBit+40, 8)
+			self.putValueLSBFirst(bitData, currentBit+48, 8)
+			self.putValueLSBFirst(bitData, currentBit+56, 8)
+			self.putValueLSBFirst(bitData, currentBit+64, 8)
+			self.putValueLSBFirst(bitData, currentBit+72, 8)
+			self.put(bitData[3][currentBit+80][0], bitData[3][currentBit+87][2], self.out_ann,
+				[3, ['Checksum, calculated value 0x%02X' % self.checksum]])
+			self.putValueLSBFirst(bitData, currentBit+80, 8)
+			self.debugOutHex += "   "
+			currentBit += 88
 		elif bitData[2] == 115:
-			currentBit = 0
-
-			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
-				[1, ['header']])
-			self.putValueLSBFirst(bitData, currentBit, 8)
-			currentBit += 8
-
-			self.debugOutHex += "   "
-
-			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
-				[1, ['header 2']])
-			self.putValueLSBFirst(bitData, currentBit, 8)
-			currentBit += 8
-
-			self.debugOutHex += "   "
-			self.checksum = 0
-
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+62][2], self.out_ann,
-				[1, ['63-bit block']])
+				[1, ['63-bit block from remote?']])
 			self.putValueLSBFirst(bitData, currentBit, 9)
 			self.putValueLSBFirst(bitData, currentBit+9, 9)
 			self.putValueLSBFirst(bitData, currentBit+18, 9)
@@ -197,7 +211,7 @@ class Decoder(srd.Decoder):
 			self.debugOutHex += "   "
 
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+17][2], self.out_ann,
-				[1, ['18-bit block']])
+				[1, ['18-bit block from remote?']])
 			self.putValueLSBFirst(bitData, currentBit, 9)
 			self.putValueLSBFirst(bitData, currentBit+9, 9)
 			currentBit += 18
@@ -205,7 +219,7 @@ class Decoder(srd.Decoder):
 			self.debugOutHex += "   "
 
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+8][2], self.out_ann,
-				[1, ['9-bit block']])
+				[1, ['9-bit block from remote?']])
 			self.putValueLSBFirst(bitData, currentBit, 9)
 			currentBit += 9
 
@@ -214,7 +228,7 @@ class Decoder(srd.Decoder):
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+8][2], self.out_ann,
 				[1, ['Checksum']])
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+8][2], self.out_ann,
-					[2, ['Checksum, calculated value 0o%03o' % self.checksum]])
+					[3, ['Checksum, calculated value 0o%03o' % self.checksum]])
 			self.putValueLSBFirst(bitData, currentBit, 9)
 			currentBit += 9
 
@@ -225,6 +239,7 @@ class Decoder(srd.Decoder):
 		self.put(bitData[0], bitData[1], self.out_ann,
 				[4, [self.debugOutHex]])
 		self.debugOutHex = ""
+		self.values = []
 
 	def putMessageEnd(self, messageEndSample):
 		self.put(messageEndSample, messageEndSample, self.out_ann,
@@ -232,6 +247,8 @@ class Decoder(srd.Decoder):
 	
 	def reset(self):
 		self.state = 'IDLE'
+
+		self.values = []
 
 		self.checksum = 0
 
