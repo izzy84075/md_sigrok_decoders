@@ -267,8 +267,8 @@ class Decoder(srd.Decoder):
 		self.shortMessageDataLongCyclesMaximum = int(self.samplerate * (240/1000000))
 
 		self.shortMessageDataShortCycles = int(self.samplerate * (17/1000000))
-		self.shortMessageDataShortCyclesMinimum = int(self.shortMessageDataShortCycles * (1-(self.marginpct*0.01)))
-		self.shortMessageDataShortCyclesMaximum = int(self.shortMessageDataShortCycles * (1+(self.marginpct*0.01)))
+		self.shortMessageDataShortCyclesMinimum = int(self.samplerate * (13/1000000))
+		self.shortMessageDataShortCyclesMaximum = int(self.samplerate * (22/1000000))
 
 		self.extendedMessageTimeoutCycles = int(self.samplerate *(5/1000))
 		#self.extendedMessageTimeoutCyclesSkip = self.extendedMessageTimeoutCycles + 50
