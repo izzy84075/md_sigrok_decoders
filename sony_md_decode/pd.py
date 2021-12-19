@@ -28,6 +28,8 @@ class Decoder(srd.Decoder):
 		('sender-player', 'Message Segment From Player'),
 		('sender-remote', 'Message Segment From Remote'),
 		('message-segment-2', 'Finer Message Segment'),
+		('error', 'Error'),
+		('warning', 'Warning'),
 	)
 	annotation_rows = (
 		('informational', 'Informational', (0,)),
@@ -38,6 +40,8 @@ class Decoder(srd.Decoder):
 		('fields', 'Data Fields', (3,6,)),
 		('debugs', 'Debugs', (4,)),
 		('debugs-two', 'Debugs 2', (5,)),
+		('errors', 'Errors', (10,)),
+		('warnings', 'Warnings', (11,)),
 	)
 	
 	def putMessageStart(self, messageStartSample):
@@ -123,24 +127,25 @@ class Decoder(srd.Decoder):
 		self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 			[8, ['Remote', 'R']])
 		self.putValueLSBFirst(bitData, currentBit, 8)
+		
 		if bitData[3][currentBit+1][3] == 1:
 			self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+1][2], self.out_ann,
-				[3, ['Remote is "new" protocol?']])
+				[3, ['Remote is active']])
 		else:
 			self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+1][2], self.out_ann,
-				[6, ['Remote is "old" protocol?']])
+				[6, ['Remote is NOT active']])
 		if bitData[3][currentBit+4][3] == 1:
 			self.put(bitData[3][currentBit+4][0], bitData[3][currentBit+4][2], self.out_ann,
-				[3, ['Remote HAS data to send?', 'RY']])
+				[3, ['Remote HAS data to send', 'RY']])
 		else:
 			self.put(bitData[3][currentBit+4][0], bitData[3][currentBit+4][2], self.out_ann,
-				[6, ['Remote has NO data to send?', 'RN']])
+				[6, ['Remote has NO data to send', 'RN']])
 		if bitData[3][currentBit+7][3] == 1:
 			self.put(bitData[3][currentBit+7][0], bitData[3][currentBit+7][2], self.out_ann,
-				[3, ['Remote Present?']])
+				[3, ['Remote Present', 'RP']])
 		else:
 			self.put(bitData[3][currentBit+7][0], bitData[3][currentBit+7][2], self.out_ann,
-				[6, ['Remote NOT Present?']])
+				[6, ['Remote NOT Present', 'RNP']])
 	
 	def putPlayerHeader(self, bitData, currentBit):
 		self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
@@ -150,25 +155,28 @@ class Decoder(srd.Decoder):
 		self.putValueLSBFirst(bitData, currentBit, 8)
 		if bitData[3][currentBit][3] == 0:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit][2], self.out_ann,
-				[3, ['Player HAS data to send?', 'PY']])
+				[3, ['Player HAS data to send', 'PY']])
 		else:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit][2], self.out_ann,
-				[6, ['Player has NO data to send?', 'PN']])
+				[6, ['Player has NO data to send', 'PN']])
 		if bitData[3][currentBit+4][3] == 1:
 			self.put(bitData[3][currentBit+4][0], bitData[3][currentBit+4][2], self.out_ann,
-				[3, ['Player ACKs remote has data to send, cedes the bus after header?', 'PAR']])
+				[3, ['Player cedes the bus to remote after header', 'RDB']])
 		else:
 			self.put(bitData[3][currentBit+4][0], bitData[3][currentBit+4][2], self.out_ann,
-				[6, ['Player does not cede the bus to remote after header?', 'PNR']])
+				[6, ['Player does NOT cede the bus to remote after header', 'PDB']])
 		self.put(bitData[3][currentBit+7][0], bitData[3][currentBit+7][2], self.out_ann,
-			[3, ['Player Present?']])
+			[3, ['Player Present']])
 
 	def expandPlayerDataBlock(self, bitData, currentBit, packetType):
 		self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
-			[9, ['Packet type?']])
+			[9, ['Packet type']])
 		if packetType == 0x01:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
-				[3, ['Request Remote capabilities?']])
+				[3, ['Request Remote capabilities']])
+
+			self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+				[11, ['Unsure']])
 			self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 				[9, ['Which block?']])
 			if self.values[3] == 0x01:
@@ -177,24 +185,229 @@ class Decoder(srd.Decoder):
 			elif self.values[3] == 0x02:
 				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 					[3, ['Second block']])
+			elif self.values[3] == 0x05:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['Fifth block']])
 			elif self.values[3] == 0x06:
 				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
-					[3, ['Sixth block, serial number?']])
+					[3, ['Sixth block, serial number and release?']])
+			else:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[10, ['UNRECOGNIZED VALUE']])
+		elif packetType == 0x05:
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[3, ['LCD Backlight Control']])
+			self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+				[9, ['LCD Backlight State']])
+			if self.values[3] == 0x00:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['LCD Backlight: Off']])
+			elif self.values[3] == 0x7F:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['LCD Backlight: On']])
+			else:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[10, ['UNRECOGNIZED VALUE']])
+		elif packetType == 0x06:
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[11, ['Unsure']])
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[3, ['LCD Remote Service Mode Control?']])
+			
+			if self.values[3] == 0x7F:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['LCD Remote Service Mode End']])
+			elif (self.values[3] == 0x00) and (self.values[4] == 0x06) and (self.values[5] == 0x01) and (self.values[6] == 0x03) and (self.values[7] == 0x80):
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+47][2], self.out_ann,
+					[11, ['Unsure']])
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+47][2], self.out_ann,
+					[3, ['LCD Remote Service Mode All Segments On?']])
+			else:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[10, ['UNRECOGNIZED VALUE']])
+		elif packetType == 0x40:
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[3, ['Volume Level']])
+			self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+				[9, ['Current Volume Level']])
+			if self.values[3] == 0xFF:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['Current Volume Level: 32/32']])
+			elif self.values[3] < 32:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['Current Volume Level: %d/32' % self.values[3]]])
+			else:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[10, ['UNRECOGNIZED VALUE']])
+		elif packetType == 0x41:
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[3, ['Playback Mode']])
+			self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+				[9, ['Current Playback Mode']])
+			if self.values[3] == 0x00:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['Current Playback Mode: Normal']])
+			elif self.values[3] == 0x01:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['Current Playback Mode: Repeat All Tracks']])
+			elif self.values[3] == 0x02:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['Current Playback Mode: One Track, Stop Afterwards']])
+			elif self.values[3] == 0x03:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['Current Playback Mode: Repeat One Track']])
+			elif self.values[3] == 0x04:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['Current Playback Mode: Shuffle No Repeats']])
+			elif self.values[3] == 0x05:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['Current Playback Mode: Shuffle With Repeats']])
+			elif self.values[3] == 0x06:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['Current Playback Mode: PGM, No Repeats']])
+			elif self.values[3] == 0x07:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['Current Playback Mode: PGM, Repeat']])
+			else:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[10, ['UNRECOGNIZED VALUE']])
+		elif packetType == 0x42:
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[3, ['Record Indicator']])
+			self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+				[9, ['Record Indicator State']])
+			if self.values[3] == 0x00:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['Record Indicator: Off']])
+			elif self.values[3] == 0x7F:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['Record Indicator: On']])
+			else:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[10, ['UNRECOGNIZED VALUE']])
+		elif packetType == 0x43:
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[3, ['Battery Level Indicator']])
+			self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+				[9, ['Battery Level Indicator State']])
+			if self.values[3] == 0x01:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['Battery Level Indicator: 1/4 bars, blinking']])
+			elif self.values[3] == 0x7F:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['Battery Level Indicator: Charging']])
+			elif self.values[3] == 0x80:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['Battery Level Indicator: Empty, blinking']])
+			elif self.values[3] == 0x9F:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['Battery Level Indicator: 1/4 bars']])
+			elif self.values[3] == 0xBF:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['Battery Level Indicator: 2/4 bars']])
+			elif self.values[3] == 0xDF:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['Battery Level Indicator: 3/4 bars']])
+			elif self.values[3] == 0xFF:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['Battery Level Indicator: 4/4 bars']])
+			else:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[10, ['UNRECOGNIZED VALUE']])
+		elif packetType == 0x46:
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[3, ['EQ/Sound Indicator']])
+			self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+				[9, ['EQ/Sound Indicator State']])
+			if self.values[3] == 0x00:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['EQ/Sound Indicator: Normal']])
+			elif self.values[3] == 0x01:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[11, ['Unsure']])
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['EQ/Sound Indicator: Bass 1?']])
+			elif self.values[3] == 0x02:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[11, ['Unsure']])
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['EQ/Sound Indicator: Bass 2?']])
+			elif self.values[3] == 0x03:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['EQ/Sound Indicator: Sound 1']])
+			elif self.values[3] == 0x04:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['EQ/Sound Indicator: Sound 2']])
+			else:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[10, ['UNRECOGNIZED VALUE']])
+		elif packetType == 0x47:
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[3, ['Alarm Indicator']])
+			self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+				[9, ['Alarm Indicator State']])
+			if self.values[3] == 0x00:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['Alarm Indicator: Off']])
+			elif self.values[3] == 0x7F:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['Alarm Indicator: On']])
+			else:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[10, ['UNRECOGNIZED VALUE']])
 		elif packetType == 0xA0:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
-				[3, ['Track number, player stopped?']])
+				[3, ['Track number']])
 			self.put(bitData[3][currentBit+32][0], bitData[3][currentBit+39][2], self.out_ann,
-				[9, ['Track number']])
+				[9, ['Current Track Number']])
 			self.put(bitData[3][currentBit+32][0], bitData[3][currentBit+39][2], self.out_ann,
-				[3, ['Track number: %d' % self.values[6]]])
+				[3, ['Current Track Number: %d' % self.values[6]]])
 		elif packetType == 0xA1:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
-				[3, ['Track number, playing?']])
+				[3, ['LCD Disc Icon Control']])
+
+			self.put(bitData[3][currentBit+16][0], bitData[3][currentBit+23][2], self.out_ann,
+				[9, ['LCD Disc Icon Outline']])
+			if self.values[4] == 0x00:
+				self.put(bitData[3][currentBit+16][0], bitData[3][currentBit+23][2], self.out_ann,
+					[3, ['LCD Disc Icon Outline: Off']])
+			elif self.values[4] == 0x7F:
+				self.put(bitData[3][currentBit+16][0], bitData[3][currentBit+23][2], self.out_ann,
+					[3, ['LCD Disc Icon Outline: On']])
+			else:
+				self.put(bitData[3][currentBit+16][0], bitData[3][currentBit+23][2], self.out_ann,
+					[10, ['UNRECOGNIZED VALUE']])
+
+			
+			self.put(bitData[3][currentBit+24][0], bitData[3][currentBit+31][2], self.out_ann,
+				[9, ['LCD Disc Icon Fill Segments Enable']])
+			if self.values[4] == 0x00:
+				self.put(bitData[3][currentBit+24][0], bitData[3][currentBit+31][2], self.out_ann,
+					[3, ['LCD Disc Icon Fill Segments: All disabled']])
+			elif self.values[4] == 0x7F:
+				self.put(bitData[3][currentBit+24][0], bitData[3][currentBit+31][2], self.out_ann,
+					[3, ['LCD Disc Icon Fill Segments: All enabled']])
+			else:
+				self.put(bitData[3][currentBit+24][0], bitData[3][currentBit+31][2], self.out_ann,
+					[10, ['UNRECOGNIZED VALUE']])
+
 			self.put(bitData[3][currentBit+32][0], bitData[3][currentBit+39][2], self.out_ann,
-				[9, ['Track number']])
-			self.put(bitData[3][currentBit+32][0], bitData[3][currentBit+39][2], self.out_ann,
-				[3, ['Track number: %d' % self.values[6]]])
+				[9, ['LCD Disc Icon Fill Segment Animation']])
+			if self.values[4] == 0x00:
+				self.put(bitData[3][currentBit+32][0], bitData[3][currentBit+39][2], self.out_ann,
+					[3, ['LCD Disc Icon Fill Segment Animation: No animation, no segments displayed']])
+			elif self.values[4] == 0x03:
+				self.put(bitData[3][currentBit+32][0], bitData[3][currentBit+39][2], self.out_ann,
+					[3, ['LCD Disc Icon Fill Segment Animation: "Spinning" animation']])
+			elif self.values[4] == 0x7F:
+				self.put(bitData[3][currentBit+32][0], bitData[3][currentBit+39][2], self.out_ann,
+					[3, ['LCD Disc Icon Fill Segment Animation: No animation, all segments displayed']])
+			else:
+				self.put(bitData[3][currentBit+32][0], bitData[3][currentBit+39][2], self.out_ann,
+					[10, ['UNRECOGNIZED VALUE']])
 		elif packetType == 0xA2:
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[11, ['Unsure']])
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[3, ['Track number, just changed track?']])
 			self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
@@ -208,6 +421,9 @@ class Decoder(srd.Decoder):
 		elif packetType == 0xC8:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[3, ['LCD Text']])
+
+			self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+				[11, ['Unsure']])
 			self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 				[9, ['Which segment?']])
 			if self.values[3] == 0x02:
@@ -244,6 +460,12 @@ class Decoder(srd.Decoder):
 					[9, ['String position "6"?']])
 				self.put(bitData[3][currentBit+72][0], bitData[3][currentBit+79][2], self.out_ann,
 					[9, ['String position "7"?']])
+			else:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[10, ['UNRECOGNIZED VALUE']])
+		else:
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+					[10, ['UNRECOGNIZED VALUE']])
 	
 	def putPlayerDataBlock(self, bitData, currentBit):
 		#put up basic data about the message segment
@@ -281,9 +503,17 @@ class Decoder(srd.Decoder):
 		self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+8][2], self.out_ann,
 			[9, ['Packet type?']])
 		
-		if packetType == 0xC0:
+		if packetType == 0x83:
 			self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+8][2], self.out_ann,
-				[3, ['Remote capabilities?']])
+				[11, ['Unsure']])
+			self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+8][2], self.out_ann,
+				[3, ['Serial number?']])
+		elif packetType == 0xC0:
+			self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+8][2], self.out_ann,
+				[3, ['Remote capabilities']])
+
+			self.put(bitData[3][currentBit+10][0], bitData[3][currentBit+17][2], self.out_ann,
+				[11, ['Unsure']])
 			self.put(bitData[3][currentBit+10][0], bitData[3][currentBit+17][2], self.out_ann,
 				[9, ['Which block?']])
 			if self.values[3] == 0x01:
@@ -307,9 +537,15 @@ class Decoder(srd.Decoder):
 			elif self.values[3] == 0x02:
 				self.put(bitData[3][currentBit+10][0], bitData[3][currentBit+17][2], self.out_ann,
 					[3, ['Second block']])
-			elif self.values[3] == 0x06:
+			elif self.values[3] == 0x05:
 				self.put(bitData[3][currentBit+10][0], bitData[3][currentBit+17][2], self.out_ann,
-					[3, ['Sixth block, serial number?']])
+					[3, ['Fifth block']])
+			else:
+				self.put(bitData[3][currentBit+10][0], bitData[3][currentBit+17][2], self.out_ann,
+					[10, ['UNRECOGNIZED VALUE']])
+		else:
+			self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+8][2], self.out_ann,
+					[10, ['UNRECOGNIZED VALUE']])
 	
 	def putRemoteDataBlock(self, bitData, currentBit):
 		#put up basic data about the transfer
