@@ -19,17 +19,20 @@ class Decoder(srd.Decoder):
 	tags = ['']
 	annotations = (
 		('info', 'Info'),
-		('message-segment', 'Message Segment'),
-		('byte', 'Byte'),
+		('message-segment', 'Rough Message Segment'),
+		('value', 'Value'),
 		('data-field', 'Data Field'),
 		('debug', 'Debug'),
 		('debug-two', 'Debug2'),
-		('data-field-negative', 'Data Field (Negative)')
+		('data-field-negative', 'Data Field (Negative)'),
+		('message-segment-player', 'Message Segment From Player'),
+		('message-segment-remote', 'Message Segment From Remote'),
 	)
 	annotation_rows = (
 		('informational', 'Informational', (0,)),
-		('message-segments', 'Message Segments', (1,)),
-		('bytes', 'Bytes', (2,)),
+		('message-segments', 'Rough Message Segments', (1,)),
+		('senders', 'Sender', (7,8,)),
+		('values', 'Values', (2,)),
 		('fields', 'Data Fields', (3,6,)),
 		('debugs', 'Debugs', (4,)),
 		('debugs-two', 'Debugs 2', (5,)),
@@ -115,6 +118,8 @@ class Decoder(srd.Decoder):
 	def putRemoteHeader(self, bitData, currentBit):
 		self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 			[1, ['Header from remote']])
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+			[8, ['Remote', 'R']])
 		self.putValueLSBFirst(bitData, currentBit, 8)
 		if bitData[3][currentBit+1][3] == 1:
 			self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+1][2], self.out_ann,
@@ -138,6 +143,8 @@ class Decoder(srd.Decoder):
 	def putPlayerHeader(self, bitData, currentBit):
 		self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 			[1, ['Header from player']])
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+			[7, ['Player', 'P']])
 		self.putValueLSBFirst(bitData, currentBit, 8)
 		if bitData[3][currentBit][3] == 0:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit][2], self.out_ann,
@@ -157,6 +164,8 @@ class Decoder(srd.Decoder):
 	def putPlayerDataBlock(self, bitData, currentBit):
 		self.put(bitData[3][currentBit][0], bitData[3][(currentBit+87)][2], self.out_ann,
 			[1, ['Player data block?']])
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit+87][2], self.out_ann,
+			[7, ['Player', 'P']])
 		
 		self.putValueLSBFirst(bitData, currentBit, 8)
 		self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
@@ -181,39 +190,86 @@ class Decoder(srd.Decoder):
 		self.putValueLSBFirst(bitData, currentBit+80, 8)
 	
 	def putRemoteDataBlock(self, bitData, currentBit):
-		self.put(bitData[3][currentBit][0], bitData[3][currentBit+62][2], self.out_ann,
-			[1, ['63-bit block from remote?']])
-		self.putValueLSBFirst(bitData, currentBit, 9)
-		self.putValueLSBFirst(bitData, currentBit+9, 9)
-		self.putValueLSBFirst(bitData, currentBit+18, 9)
-		self.putValueLSBFirst(bitData, currentBit+27, 9)
-		self.putValueLSBFirst(bitData, currentBit+36, 9)
-		self.putValueLSBFirst(bitData, currentBit+45, 9)
-		self.putValueLSBFirst(bitData, currentBit+54, 9)
-		currentBit += 63
-
-		self.debugOutHex += "   "
-
-		self.put(bitData[3][currentBit][0], bitData[3][currentBit+17][2], self.out_ann,
-			[1, ['18-bit block from remote?']])
-		self.putValueLSBFirst(bitData, currentBit, 9)
-		self.putValueLSBFirst(bitData, currentBit+9, 9)
-		currentBit += 18
-
-		self.debugOutHex += "   "
-
-		self.put(bitData[3][currentBit][0], bitData[3][currentBit+8][2], self.out_ann,
-			[1, ['9-bit block from remote?']])
-		self.putValueLSBFirst(bitData, currentBit, 9)
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit+98][2], self.out_ann,
+			[1, ['Remote Data Block (With timing bits from Player)']])
+		
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit][2], self.out_ann,
+			[7, ['Player', 'P']])
+		self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+8][2], self.out_ann,
+			[8, ['Remote', 'R']])
+		self.putValueLSBFirst(bitData, currentBit+1, 8)
 		currentBit += 9
 
-		self.debugOutHex += "   "
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit][2], self.out_ann,
+			[7, ['Player', 'P']])
+		self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+8][2], self.out_ann,
+			[8, ['Remote', 'R']])
+		self.putValueLSBFirst(bitData, currentBit+1, 8)
+		currentBit += 9
 
-		self.put(bitData[3][currentBit][0], bitData[3][currentBit+8][2], self.out_ann,
-			[1, ['Checksum']])
-		self.put(bitData[3][currentBit][0], bitData[3][currentBit+8][2], self.out_ann,
-				[3, ['Checksum, calculated value 0o%03o' % self.checksum]])
-		self.putValueLSBFirst(bitData, currentBit, 9)
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit][2], self.out_ann,
+			[7, ['Player', 'P']])
+		self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+8][2], self.out_ann,
+			[8, ['Remote', 'R']])
+		self.putValueLSBFirst(bitData, currentBit+1, 8)
+		currentBit += 9
+
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit][2], self.out_ann,
+			[7, ['Player', 'P']])
+		self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+8][2], self.out_ann,
+			[8, ['Remote', 'R']])
+		self.putValueLSBFirst(bitData, currentBit+1, 8)
+		currentBit += 9
+
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit][2], self.out_ann,
+			[7, ['Player', 'P']])
+		self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+8][2], self.out_ann,
+			[8, ['Remote', 'R']])
+		self.putValueLSBFirst(bitData, currentBit+1, 8)
+		currentBit += 9
+
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit][2], self.out_ann,
+			[7, ['Player', 'P']])
+		self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+8][2], self.out_ann,
+			[8, ['Remote', 'R']])
+		self.putValueLSBFirst(bitData, currentBit+1, 8)
+		currentBit += 9
+
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit][2], self.out_ann,
+			[7, ['Player', 'P']])
+		self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+8][2], self.out_ann,
+			[8, ['Remote', 'R']])
+		self.putValueLSBFirst(bitData, currentBit+1, 8)
+		currentBit += 9
+
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit][2], self.out_ann,
+			[7, ['Player', 'P']])
+		self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+8][2], self.out_ann,
+			[8, ['Remote', 'R']])
+		self.putValueLSBFirst(bitData, currentBit+1, 8)
+		currentBit += 9
+
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit][2], self.out_ann,
+			[7, ['Player', 'P']])
+		self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+8][2], self.out_ann,
+			[8, ['Remote', 'R']])
+		self.putValueLSBFirst(bitData, currentBit+1, 8)
+		currentBit += 9
+
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit][2], self.out_ann,
+			[7, ['Player', 'P']])
+		self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+8][2], self.out_ann,
+			[8, ['Remote', 'R']])
+		self.putValueLSBFirst(bitData, currentBit+1, 8)
+		currentBit += 9
+
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit][2], self.out_ann,
+			[7, ['Player', 'P']])
+		self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+8][2], self.out_ann,
+			[8, ['Remote', 'R']])
+		self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+8][2], self.out_ann,
+				[3, ['Checksum, calculated value 0x%02X' % self.checksum]])
+		self.putValueLSBFirst(bitData, currentBit+1, 8)
 		currentBit += 9
 
 	def expandMessage(self, bitData):
