@@ -45,6 +45,7 @@ class Decoder(srd.Decoder):
 	)
 
 	characters = {
+		0x00: "<Unusued position>, 0x00",
 		0x04: "<minidisc icon>, 0x04",
 		0x14: "<music note icon>, 0x14",
 
@@ -136,6 +137,8 @@ class Decoder(srd.Decoder):
 		0x78: "x",
 		0x79: "y",
 		0x7A: "z",
+
+		0xFF: "<End of string>, 0xFF",
 
 	}
 	
