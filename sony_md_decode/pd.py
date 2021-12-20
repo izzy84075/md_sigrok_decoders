@@ -493,10 +493,10 @@ class Decoder(srd.Decoder):
 			
 			self.put(bitData[3][currentBit+24][0], bitData[3][currentBit+31][2], self.out_ann,
 				[9, ['LCD Disc Icon Fill Segments Enable']])
-			if self.values[4] == 0x00:
+			if self.values[5] == 0x00:
 				self.put(bitData[3][currentBit+24][0], bitData[3][currentBit+31][2], self.out_ann,
 					[3, ['LCD Disc Icon Fill Segments: All disabled']])
-			elif self.values[4] == 0x7F:
+			elif self.values[5] == 0x7F:
 				self.put(bitData[3][currentBit+24][0], bitData[3][currentBit+31][2], self.out_ann,
 					[3, ['LCD Disc Icon Fill Segments: All enabled']])
 			else:
@@ -505,13 +505,13 @@ class Decoder(srd.Decoder):
 
 			self.put(bitData[3][currentBit+32][0], bitData[3][currentBit+39][2], self.out_ann,
 				[9, ['LCD Disc Icon Fill Segment Animation']])
-			if self.values[4] == 0x00:
+			if self.values[6] == 0x00:
 				self.put(bitData[3][currentBit+32][0], bitData[3][currentBit+39][2], self.out_ann,
 					[3, ['LCD Disc Icon Fill Segment Animation: No animation, no segments displayed']])
-			elif self.values[4] == 0x03:
+			elif self.values[6] == 0x03:
 				self.put(bitData[3][currentBit+32][0], bitData[3][currentBit+39][2], self.out_ann,
 					[3, ['LCD Disc Icon Fill Segment Animation: "Spinning" animation']])
-			elif self.values[4] == 0x7F:
+			elif self.values[6] == 0x7F:
 				self.put(bitData[3][currentBit+32][0], bitData[3][currentBit+39][2], self.out_ann,
 					[3, ['LCD Disc Icon Fill Segment Animation: No animation, all segments displayed']])
 			else:
