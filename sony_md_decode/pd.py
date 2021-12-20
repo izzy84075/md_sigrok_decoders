@@ -47,96 +47,99 @@ class Decoder(srd.Decoder):
 	characters = {
 		0x00: "<Unusued position>, 0x00",
 		0x04: "<minidisc icon>, 0x04",
+		0x06: "<group icon>, 0x06",
+		0x0B: "<begin half-width katakana>, 0x0B",
+		0x0C: "<end half-width katakana>, 0x0C",
 		0x14: "<music note icon>, 0x14",
 
 		0x20: "' ', space, 0x20",
-		0x21: "!",
-		0x22: "\"",
-		0x23: "#",
-		0x24: "$",
-		0x25: "%",
-		0x26: "&",
-		0x27: "'",
-		0x28: "(",
-		0x29: ")",
-		0x2A: "*",
-		0x2B: "+",
-		0x2C: ",",
-		0x2D: "-",
-		0x2E: ".",
-		0x2F: "/",
-		0x30: "0",
-		0x31: "1",
-		0x32: "2",
-		0x33: "3",
-		0x34: "4",
-		0x35: "5",
-		0x36: "6",
-		0x37: "7",
-		0x38: "8",
-		0x39: "9",
-		0x3A: ":",
-		0x3B: ";",
-		0x3C: "<",
-		0x3D: "=",
-		0x3E: ">",
-		0x3F: "?",
-		0x40: "@",
-		0x41: "A",
-		0x42: "B",
-		0x43: "C",
-		0x44: "D",
-		0x45: "E",
-		0x46: "F",
-		0x47: "G",
-		0x48: "H",
-		0x49: "I",
-		0x4A: "J",
-		0x4B: "K",
-		0x4C: "L",
-		0x4D: "M",
-		0x4E: "N",
-		0x4F: "O",
-		0x50: "P",
-		0x51: "Q",
-		0x52: "R",
-		0x53: "S",
-		0x54: "T",
-		0x55: "U",
-		0x56: "V",
-		0x57: "W",
-		0x58: "X",
-		0x59: "Y",
-		0x5A: "Z",
+		#0x21: "!",
+		#0x22: "\"",
+		#0x23: "#",
+		#0x24: "$",
+		#0x25: "%",
+		#0x26: "&",
+		#0x27: "'",
+		#0x28: "(",
+		#0x29: ")",
+		#0x2A: "*",
+		#0x2B: "+",
+		#0x2C: ",",
+		#0x2D: "-",
+		#0x2E: ".",
+		#0x2F: "/",
+		#0x30: "0",
+		#0x31: "1",
+		#0x32: "2",
+		#0x33: "3",
+		#0x34: "4",
+		#0x35: "5",
+		#0x36: "6",
+		#0x37: "7",
+		#0x38: "8",
+		#0x39: "9",
+		#0x3A: ":",
+		#0x3B: ";",
+		#0x3C: "<",
+		#0x3D: "=",
+		#0x3E: ">",
+		#0x3F: "?",
+		#0x40: "@",
+		#0x41: "A",
+		#0x42: "B",
+		#0x43: "C",
+		#0x44: "D",
+		#0x45: "E",
+		#0x46: "F",
+		#0x47: "G",
+		#0x48: "H",
+		#0x49: "I",
+		#0x4A: "J",
+		#0x4B: "K",
+		#0x4C: "L",
+		#0x4D: "M",
+		#0x4E: "N",
+		#0x4F: "O",
+		#0x50: "P",
+		#0x51: "Q",
+		#0x52: "R",
+		#0x53: "S",
+		#0x54: "T",
+		#0x55: "U",
+		#0x56: "V",
+		#0x57: "W",
+		#0x58: "X",
+		#0x59: "Y",
+		#0x5A: "Z",
 
-		0x5F: "_",
-		0x60: "`",
-		0x61: "a",
-		0x62: "b",
-		0x63: "c",
-		0x64: "d",
-		0x65: "e",
-		0x66: "f",
-		0x67: "g",
-		0x68: "h",
-		0x69: "i",
-		0x6A: "j",
-		0x6B: "k",
-		0x6C: "l",
-		0x6D: "m",
-		0x6E: "n",
-		0x6F: "o",
-		0x70: "p",
-		0x71: "q",
-		0x72: "r",
-		0x73: "s",
-		0x74: "t",
-		0x75: "u",
-		0x76: "v",
-		0x77: "w",
-		0x78: "x",
-		0x79: "y",
-		0x7A: "z",
+		#0x5F: "_",
+		#0x60: "`",
+		#0x61: "a",
+		#0x62: "b",
+		#0x63: "c",
+		#0x64: "d",
+		#0x65: "e",
+		#0x66: "f",
+		#0x67: "g",
+		#0x68: "h",
+		#0x69: "i",
+		#0x6A: "j",
+		#0x6B: "k",
+		#0x6C: "l",
+		#0x6D: "m",
+		#0x6E: "n",
+		#0x6F: "o",
+		#0x70: "p",
+		#0x71: "q",
+		#0x72: "r",
+		#0x73: "s",
+		#0x74: "t",
+		#0x75: "u",
+		#0x76: "v",
+		#0x77: "w",
+		#0x78: "x",
+		#0x79: "y",
+		#0x7A: "z",
 
 		0xFF: "<End of string>, 0xFF",
 
@@ -270,10 +273,39 @@ class Decoder(srd.Decoder):
 		self.put(bitData[3][currentBit+7][0], bitData[3][currentBit+7][2], self.out_ann,
 			[3, ['Player Present']])
 	
-	def putLCDCharacter(self, bitData, currentBit, value):
-		if value in self.characters:
+	def putLCDCharacter(self, bitData, currentBit, values, index):
+		isFirstOfDouble = lambda x: x in range(0x81, 0x9f) or x in range(0xe0, 0xef)
+		isSJISHalfKata = lambda x: x in range(0xa1, 0xdf)
+		isPrintable = lambda x: x in range(0x20, 0x7e)
+
+		twoByteStartIndices = []
+		charIndex = 0
+		while charIndex < len(values):
+			if isFirstOfDouble(values[charIndex]):
+				twoByteStartIndices.append(charIndex)
+				charIndex += 1
+			charIndex += 1
+
+		value = values[index]
+		nextValue = values[index + 1] if index < len(values) - 1 else None
+		if value in self.characters: # self.characters takes priority
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[3, [self.characters[value]]])
+			return
+		if index - 1 in twoByteStartIndices: return # The correct character has already been displayed.
+		if index in twoByteStartIndices:
+			if nextValue is None:
+				self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+					[3, ['First byte of 2-byte SJIS sequence']])
+			else:
+				self.put(bitData[3][currentBit][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, [bytes([value, nextValue]).decode('sjis')]])
+		elif isPrintable(value):
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[3, [bytes([value]).decode('sjis')]])
+		elif isSJISHalfKata(value):
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[3, ['SJIS half-width katakana - shouldn\'t be possible']])
 		else:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[3, ['Unknown character']])
@@ -539,53 +571,55 @@ class Decoder(srd.Decoder):
 			self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 				[9, ['Which segment?']])
 			if self.values[3] == 0x02:
+				splicedValues = self.values[5:12]
 				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 					[3, ['Non-final segment?']])
 				self.put(bitData[3][currentBit+24][0], bitData[3][currentBit+31][2], self.out_ann,
 					[9, ['String position "1"?']])
-				self.putLCDCharacter(bitData, currentBit+24, self.values[5])
+				self.putLCDCharacter(bitData, currentBit+24, splicedValues, 0)
 				self.put(bitData[3][currentBit+32][0], bitData[3][currentBit+39][2], self.out_ann,
 					[9, ['String position "2"?']])
-				self.putLCDCharacter(bitData, currentBit+32, self.values[6])
+				self.putLCDCharacter(bitData, currentBit+32, splicedValues, 1)
 				self.put(bitData[3][currentBit+40][0], bitData[3][currentBit+47][2], self.out_ann,
 					[9, ['String position "3"?']])
-				self.putLCDCharacter(bitData, currentBit+40, self.values[7])
+				self.putLCDCharacter(bitData, currentBit+40, splicedValues, 2)
 				self.put(bitData[3][currentBit+48][0], bitData[3][currentBit+55][2], self.out_ann,
 					[9, ['String position "4"?']])
-				self.putLCDCharacter(bitData, currentBit+48, self.values[8])
+				self.putLCDCharacter(bitData, currentBit+48, splicedValues, 3)
 				self.put(bitData[3][currentBit+56][0], bitData[3][currentBit+63][2], self.out_ann,
 					[9, ['String position "5"?']])
-				self.putLCDCharacter(bitData, currentBit+56, self.values[9])
+				self.putLCDCharacter(bitData, currentBit+56, splicedValues, 4)
 				self.put(bitData[3][currentBit+64][0], bitData[3][currentBit+71][2], self.out_ann,
 					[9, ['String position "6"?']])
-				self.putLCDCharacter(bitData, currentBit+64, self.values[10])
+				self.putLCDCharacter(bitData, currentBit+64, splicedValues, 5)
 				self.put(bitData[3][currentBit+72][0], bitData[3][currentBit+79][2], self.out_ann,
 					[9, ['String position "7"?']])
-				self.putLCDCharacter(bitData, currentBit+72, self.values[11])
+				self.putLCDCharacter(bitData, currentBit+72, splicedValues, 6)
 			elif self.values[3] == 0x01:
+				splicedValues = self.values[5:12]
 				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 					[3, ['Final segment?']])
 				self.put(bitData[3][currentBit+24][0], bitData[3][currentBit+31][2], self.out_ann,
 					[9, ['String position "1"?']])
-				self.putLCDCharacter(bitData, currentBit+24, self.values[5])
+				self.putLCDCharacter(bitData, currentBit+24, splicedValues, 0)
 				self.put(bitData[3][currentBit+32][0], bitData[3][currentBit+39][2], self.out_ann,
 					[9, ['String position "2"?']])
-				self.putLCDCharacter(bitData, currentBit+32, self.values[6])
+				self.putLCDCharacter(bitData, currentBit+32, splicedValues, 1)
 				self.put(bitData[3][currentBit+40][0], bitData[3][currentBit+47][2], self.out_ann,
 					[9, ['String position "3"?']])
-				self.putLCDCharacter(bitData, currentBit+40, self.values[7])
+				self.putLCDCharacter(bitData, currentBit+40, splicedValues, 2)
 				self.put(bitData[3][currentBit+48][0], bitData[3][currentBit+55][2], self.out_ann,
 					[9, ['String position "4"?']])
-				self.putLCDCharacter(bitData, currentBit+48, self.values[8])
+				self.putLCDCharacter(bitData, currentBit+48, splicedValues, 3)
 				self.put(bitData[3][currentBit+56][0], bitData[3][currentBit+63][2], self.out_ann,
 					[9, ['String position "5"?']])
-				self.putLCDCharacter(bitData, currentBit+56, self.values[9])
+				self.putLCDCharacter(bitData, currentBit+56, splicedValues, 4)
 				self.put(bitData[3][currentBit+64][0], bitData[3][currentBit+71][2], self.out_ann,
 					[9, ['String position "6"?']])
-				self.putLCDCharacter(bitData, currentBit+64, self.values[10])
+				self.putLCDCharacter(bitData, currentBit+64, splicedValues, 5)
 				self.put(bitData[3][currentBit+72][0], bitData[3][currentBit+79][2], self.out_ann,
 					[9, ['String position "7"?']])
-				self.putLCDCharacter(bitData, currentBit+72, self.values[11])
+				self.putLCDCharacter(bitData, currentBit+72, splicedValues, 6)
 			else:
 				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 					[10, ['UNRECOGNIZED VALUE']])
