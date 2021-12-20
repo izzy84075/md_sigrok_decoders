@@ -134,6 +134,27 @@ class Decoder(srd.Decoder):
 			self.put(valueStart, valueEnd, self.out_ann,
 				[2, ['Value (Low %d bits): 0x%X' % (numBits, value)]])
 			self.debugOutHex += ('0x%X ' % value)
+	
+	def putUnusedByte(self, bitData, currentBit, value, expectedValue):
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+			[9, ['Unused?']])
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+			[3, ['Unused?']])
+		if value != expectedValue:
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[10, ['Previously unused byte is not expected value!']])
+		if value != 0x00:
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[11, ['Unused byte has non-zero value!']])
+	
+	def putUnknownByte(self, bitData, currentBit, value):
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+			[9, ['Unknown?']])
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+			[3, ['Unknown: 0x%02X' % value]])
+		if value != 0x00:
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[10, ['Unknown byte has non-zero value!']])
 
 	def putRemoteHeader(self, bitData, currentBit):
 		self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
@@ -251,6 +272,7 @@ class Decoder(srd.Decoder):
 			else:
 				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 					[10, ['UNRECOGNIZED VALUE']])
+			currentBit += 16
 		elif packetType == 0x05:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[3, ['LCD Backlight Control']])
@@ -265,6 +287,7 @@ class Decoder(srd.Decoder):
 			else:
 				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 					[10, ['UNRECOGNIZED VALUE']])
+			currentBit += 16
 		elif packetType == 0x06:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[11, ['Unsure']])
@@ -282,6 +305,7 @@ class Decoder(srd.Decoder):
 			else:
 				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 					[10, ['UNRECOGNIZED VALUE']])
+			currentBit += 16
 		elif packetType == 0x40:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[3, ['Volume Level']])
@@ -296,6 +320,7 @@ class Decoder(srd.Decoder):
 			else:
 				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 					[10, ['UNRECOGNIZED VALUE']])
+			currentBit += 16
 		elif packetType == 0x41:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[3, ['Playback Mode']])
@@ -328,6 +353,7 @@ class Decoder(srd.Decoder):
 			else:
 				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 					[10, ['UNRECOGNIZED VALUE']])
+			currentBit += 16
 		elif packetType == 0x42:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[3, ['Record Indicator']])
@@ -342,6 +368,7 @@ class Decoder(srd.Decoder):
 			else:
 				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 					[10, ['UNRECOGNIZED VALUE']])
+			currentBit += 16
 		elif packetType == 0x43:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[3, ['Battery Level Indicator']])
@@ -371,6 +398,7 @@ class Decoder(srd.Decoder):
 			else:
 				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 					[10, ['UNRECOGNIZED VALUE']])
+			currentBit += 16
 		elif packetType == 0x46:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[3, ['EQ/Sound Indicator']])
@@ -398,6 +426,7 @@ class Decoder(srd.Decoder):
 			else:
 				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 					[10, ['UNRECOGNIZED VALUE']])
+			currentBit += 16
 		elif packetType == 0x47:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[3, ['Alarm Indicator']])
@@ -412,16 +441,26 @@ class Decoder(srd.Decoder):
 			else:
 				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 					[10, ['UNRECOGNIZED VALUE']])
+			currentBit += 16
 		elif packetType == 0xA0:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[3, ['Track number']])
+			
+			self.putUnusedByte(bitData, currentBit+8, self.values[3], 0x00)
+			self.putUnusedByte(bitData, currentBit+16, self.values[4], 0x00)
+			self.putUnusedByte(bitData, currentBit+24, self.values[5], 0x00)
+			
 			self.put(bitData[3][currentBit+32][0], bitData[3][currentBit+39][2], self.out_ann,
 				[9, ['Current Track Number']])
 			self.put(bitData[3][currentBit+32][0], bitData[3][currentBit+39][2], self.out_ann,
 				[3, ['Current Track Number: %d' % self.values[6]]])
+			
+			currentBit += 40
 		elif packetType == 0xA1:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[3, ['LCD Disc Icon Control']])
+
+			self.putUnusedByte(bitData, currentBit+8, self.values[3], 0x00)
 
 			self.put(bitData[3][currentBit+16][0], bitData[3][currentBit+23][2], self.out_ann,
 				[9, ['LCD Disc Icon Outline']])
@@ -434,7 +473,6 @@ class Decoder(srd.Decoder):
 			else:
 				self.put(bitData[3][currentBit+16][0], bitData[3][currentBit+23][2], self.out_ann,
 					[10, ['UNRECOGNIZED VALUE']])
-
 			
 			self.put(bitData[3][currentBit+24][0], bitData[3][currentBit+31][2], self.out_ann,
 				[9, ['LCD Disc Icon Fill Segments Enable']])
@@ -453,6 +491,9 @@ class Decoder(srd.Decoder):
 			if self.values[6] == 0x00:
 				self.put(bitData[3][currentBit+32][0], bitData[3][currentBit+39][2], self.out_ann,
 					[3, ['LCD Disc Icon Fill Segment Animation: No animation, no segments displayed']])
+			elif self.values[6] == 0x01:
+				self.put(bitData[3][currentBit+32][0], bitData[3][currentBit+39][2], self.out_ann,
+					[3, ['LCD Disc Icon Fill Segment Animation: "Fast Spinning" animation']])
 			elif self.values[6] == 0x03:
 				self.put(bitData[3][currentBit+32][0], bitData[3][currentBit+39][2], self.out_ann,
 					[3, ['LCD Disc Icon Fill Segment Animation: "Spinning" animation']])
@@ -462,19 +503,21 @@ class Decoder(srd.Decoder):
 			else:
 				self.put(bitData[3][currentBit+32][0], bitData[3][currentBit+39][2], self.out_ann,
 					[10, ['UNRECOGNIZED VALUE']])
+			currentBit += 40
 		elif packetType == 0xA2:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[11, ['Unsure']])
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[3, ['Track number, just changed track?']])
 			self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+				[11, ['Unsure']])
+			self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 				[9, ['New track number?']])
 			self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 				[3, ['New Track number: %d' % self.values[3]]])
-			self.put(bitData[3][currentBit+16][0], bitData[3][currentBit+23][2], self.out_ann,
-				[9, ['Old track number?']])
-			self.put(bitData[3][currentBit+16][0], bitData[3][currentBit+23][2], self.out_ann,
-				[3, ['Old Track number: %d' % self.values[4]]])
+			self.putUnknownByte(bitData, currentBit+16, self.values[4])
+			self.putUnknownByte(bitData, currentBit+24, self.values[5])
+			currentBit += 32
 		elif packetType == 0xC8:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[3, ['LCD Text']])
@@ -484,61 +527,59 @@ class Decoder(srd.Decoder):
 			self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 				[9, ['Which segment?']])
 			if self.values[3] == 0x02:
-				splicedValues = self.values[5:12]
 				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 					[3, ['Non-final segment?']])
-				self.put(bitData[3][currentBit+24][0], bitData[3][currentBit+31][2], self.out_ann,
-					[9, ['String position "1"?']])
-				self.putLCDCharacter(bitData, currentBit+24, splicedValues, 0)
-				self.put(bitData[3][currentBit+32][0], bitData[3][currentBit+39][2], self.out_ann,
-					[9, ['String position "2"?']])
-				self.putLCDCharacter(bitData, currentBit+32, splicedValues, 1)
-				self.put(bitData[3][currentBit+40][0], bitData[3][currentBit+47][2], self.out_ann,
-					[9, ['String position "3"?']])
-				self.putLCDCharacter(bitData, currentBit+40, splicedValues, 2)
-				self.put(bitData[3][currentBit+48][0], bitData[3][currentBit+55][2], self.out_ann,
-					[9, ['String position "4"?']])
-				self.putLCDCharacter(bitData, currentBit+48, splicedValues, 3)
-				self.put(bitData[3][currentBit+56][0], bitData[3][currentBit+63][2], self.out_ann,
-					[9, ['String position "5"?']])
-				self.putLCDCharacter(bitData, currentBit+56, splicedValues, 4)
-				self.put(bitData[3][currentBit+64][0], bitData[3][currentBit+71][2], self.out_ann,
-					[9, ['String position "6"?']])
-				self.putLCDCharacter(bitData, currentBit+64, splicedValues, 5)
-				self.put(bitData[3][currentBit+72][0], bitData[3][currentBit+79][2], self.out_ann,
-					[9, ['String position "7"?']])
-				self.putLCDCharacter(bitData, currentBit+72, splicedValues, 6)
 			elif self.values[3] == 0x01:
-				splicedValues = self.values[5:12]
 				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 					[3, ['Final segment?']])
-				self.put(bitData[3][currentBit+24][0], bitData[3][currentBit+31][2], self.out_ann,
-					[9, ['String position "1"?']])
-				self.putLCDCharacter(bitData, currentBit+24, splicedValues, 0)
-				self.put(bitData[3][currentBit+32][0], bitData[3][currentBit+39][2], self.out_ann,
-					[9, ['String position "2"?']])
-				self.putLCDCharacter(bitData, currentBit+32, splicedValues, 1)
-				self.put(bitData[3][currentBit+40][0], bitData[3][currentBit+47][2], self.out_ann,
-					[9, ['String position "3"?']])
-				self.putLCDCharacter(bitData, currentBit+40, splicedValues, 2)
-				self.put(bitData[3][currentBit+48][0], bitData[3][currentBit+55][2], self.out_ann,
-					[9, ['String position "4"?']])
-				self.putLCDCharacter(bitData, currentBit+48, splicedValues, 3)
-				self.put(bitData[3][currentBit+56][0], bitData[3][currentBit+63][2], self.out_ann,
-					[9, ['String position "5"?']])
-				self.putLCDCharacter(bitData, currentBit+56, splicedValues, 4)
-				self.put(bitData[3][currentBit+64][0], bitData[3][currentBit+71][2], self.out_ann,
-					[9, ['String position "6"?']])
-				self.putLCDCharacter(bitData, currentBit+64, splicedValues, 5)
-				self.put(bitData[3][currentBit+72][0], bitData[3][currentBit+79][2], self.out_ann,
-					[9, ['String position "7"?']])
-				self.putLCDCharacter(bitData, currentBit+72, splicedValues, 6)
 			else:
 				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 					[10, ['UNRECOGNIZED VALUE']])
+				
+			self.putUnusedByte(bitData, currentBit+16, self.values[4], 0x00)
+
+			splicedValues = self.values[5:12]
+			self.put(bitData[3][currentBit+24][0], bitData[3][currentBit+31][2], self.out_ann,
+				[9, ['String position 1']])
+			self.putLCDCharacter(bitData, currentBit+24, splicedValues, 0)
+			self.put(bitData[3][currentBit+32][0], bitData[3][currentBit+39][2], self.out_ann,
+				[9, ['String position 2']])
+			self.putLCDCharacter(bitData, currentBit+32, splicedValues, 1)
+			self.put(bitData[3][currentBit+40][0], bitData[3][currentBit+47][2], self.out_ann,
+				[9, ['String position 3']])
+			self.putLCDCharacter(bitData, currentBit+40, splicedValues, 2)
+			self.put(bitData[3][currentBit+48][0], bitData[3][currentBit+55][2], self.out_ann,
+				[9, ['String position 4']])
+			self.putLCDCharacter(bitData, currentBit+48, splicedValues, 3)
+			self.put(bitData[3][currentBit+56][0], bitData[3][currentBit+63][2], self.out_ann,
+				[9, ['String position 5']])
+			self.putLCDCharacter(bitData, currentBit+56, splicedValues, 4)
+			self.put(bitData[3][currentBit+64][0], bitData[3][currentBit+71][2], self.out_ann,
+				[9, ['String position 6']])
+			self.putLCDCharacter(bitData, currentBit+64, splicedValues, 5)
+			self.put(bitData[3][currentBit+72][0], bitData[3][currentBit+79][2], self.out_ann,
+				[9, ['String position 7']])
+			self.putLCDCharacter(bitData, currentBit+72, splicedValues, 6)
+
+			currentBit += 80
 		else:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
-					[10, ['UNRECOGNIZED VALUE']])
+				[10, ['UNRECOGNIZED VALUE']])
+			currentBit += 8
+
+		if currentBit < 96:
+			self.put(bitData[3][currentBit][0], bitData[3][95][2], self.out_ann,
+				[9, ['Segment not used by recognized message types']])
+			self.put(bitData[3][currentBit][0], bitData[3][95][2], self.out_ann,
+				[3, ['Segment not used by recognized message types']])
+		
+		while currentBit < 96:
+			if self.values[int(currentBit/8)] == 0x00:
+				currentBit += 8
+			else:
+				self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+					[10, ['Unclaimed byte is nonzero!']])
+				currentBit += 8
 	
 	def putPlayerDataBlock(self, bitData, currentBit):
 		#put up basic data about the message segment
@@ -581,6 +622,13 @@ class Decoder(srd.Decoder):
 				[11, ['Unsure']])
 			self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+8][2], self.out_ann,
 				[3, ['Serial number?']])
+
+			self.putUnknownByte(bitData, currentBit+10, self.values[3])
+			self.putUnknownByte(bitData, currentBit+19, self.values[4])
+			self.putUnknownByte(bitData, currentBit+28, self.values[5])
+			self.putUnknownByte(bitData, currentBit+37, self.values[6])
+
+			currentBit += 45
 		elif packetType == 0xC0:
 			self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+8][2], self.out_ann,
 				[3, ['Remote capabilities']])
@@ -593,32 +641,83 @@ class Decoder(srd.Decoder):
 				self.put(bitData[3][currentBit+10][0], bitData[3][currentBit+17][2], self.out_ann,
 					[3, ['First block, LCD capabilities?']])
 				self.put(bitData[3][currentBit+19][0], bitData[3][currentBit+26][2], self.out_ann,
+					[11, ['Unsure']])
+				self.put(bitData[3][currentBit+19][0], bitData[3][currentBit+26][2], self.out_ann,
 					[9, ['Characters displayed?']])
 				self.put(bitData[3][currentBit+19][0], bitData[3][currentBit+26][2], self.out_ann,
 					[3, ['Characters displayed: %d' % self.values[4]]])
 
+				self.putUnknownByte(bitData, currentBit+28, self.values[5])
+				self.putUnknownByte(bitData, currentBit+37, self.values[6])
+				self.putUnknownByte(bitData, currentBit+46, self.values[7])
+				self.putUnknownByte(bitData, currentBit+55, self.values[8])
+
+				self.put(bitData[3][currentBit+64][0], bitData[3][currentBit+71][2], self.out_ann,
+					[11, ['Unsure']])
 				self.put(bitData[3][currentBit+64][0], bitData[3][currentBit+71][2], self.out_ann,
 					[9, ['Pixels tall?']])
 				self.put(bitData[3][currentBit+64][0], bitData[3][currentBit+71][2], self.out_ann,
 					[3, ['Pixels tall: %d' % self.values[9]]])
 				self.put(bitData[3][currentBit+73][0], bitData[3][currentBit+80][2], self.out_ann,
+					[11, ['Unsure']])
+				self.put(bitData[3][currentBit+73][0], bitData[3][currentBit+80][2], self.out_ann,
 					[9, ['Pixels wide?']])
 				self.put(bitData[3][currentBit+73][0], bitData[3][currentBit+80][2], self.out_ann,
 					[3, ['Pixels wide: %d' % self.values[10]]])
 				self.put(bitData[3][currentBit+82][0], bitData[3][currentBit+89][2], self.out_ann,
+					[11, ['Unsure']])
+				self.put(bitData[3][currentBit+82][0], bitData[3][currentBit+89][2], self.out_ann,
 					[9, ['Character sets supported?']])
+				currentBit += 90
 			elif self.values[3] == 0x02:
 				self.put(bitData[3][currentBit+10][0], bitData[3][currentBit+17][2], self.out_ann,
-					[3, ['Second block']])
+					[3, ['Second block?']])
+				
+				self.putUnknownByte(bitData, currentBit+19, self.values[4])
+				self.putUnknownByte(bitData, currentBit+28, self.values[5])
+				self.putUnknownByte(bitData, currentBit+37, self.values[6])
+				self.putUnknownByte(bitData, currentBit+46, self.values[7])
+				self.putUnknownByte(bitData, currentBit+55, self.values[8])
+				self.putUnknownByte(bitData, currentBit+64, self.values[9])
+				self.putUnknownByte(bitData, currentBit+73, self.values[10])
+				self.putUnknownByte(bitData, currentBit+82, self.values[11])
+
+				currentBit += 90
 			elif self.values[3] == 0x05:
 				self.put(bitData[3][currentBit+10][0], bitData[3][currentBit+17][2], self.out_ann,
-					[3, ['Fifth block']])
+					[3, ['Fifth block?']])
+				
+				self.putUnknownByte(bitData, currentBit+19, self.values[4])
+				self.putUnknownByte(bitData, currentBit+28, self.values[5])
+				self.putUnknownByte(bitData, currentBit+37, self.values[6])
+				self.putUnknownByte(bitData, currentBit+46, self.values[7])
+				self.putUnknownByte(bitData, currentBit+55, self.values[8])
+				self.putUnknownByte(bitData, currentBit+64, self.values[9])
+				self.putUnknownByte(bitData, currentBit+73, self.values[10])
+				self.putUnknownByte(bitData, currentBit+82, self.values[11])
+
+				currentBit += 90
 			else:
 				self.put(bitData[3][currentBit+10][0], bitData[3][currentBit+17][2], self.out_ann,
 					[10, ['UNRECOGNIZED VALUE']])
 		else:
 			self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+8][2], self.out_ann,
 					[10, ['UNRECOGNIZED VALUE']])
+			currentBit += 9
+		
+		if currentBit < 106:
+			self.put(bitData[3][currentBit][0], bitData[3][105][2], self.out_ann,
+				[9, ['Segment not used by recognized message types']])
+			self.put(bitData[3][currentBit][0], bitData[3][105][2], self.out_ann,
+				[3, ['Segment not used by recognized message types']])
+		
+		while currentBit < 106:
+			if self.values[int(2+((currentBit-16)/9))] == 0x00:
+				currentBit += 9
+			else:
+				self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+8][2], self.out_ann,
+					[10, ['Unclaimed byte is nonzero!']])
+				currentBit += 9
 	
 	def putRemoteDataBlock(self, bitData, currentBit):
 		#put up basic data about the transfer
