@@ -239,7 +239,9 @@ class Decoder(srd.Decoder):
 				[3, [bytes([value]).decode('sjis')]])
 		elif isSJISHalfKata(value):
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
-				[10, ['SJIS half-width katakana - shouldn\'t be possible']])
+				[3, ['SJIS half-width katakana - shouldn\'t be possible']])
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[11, ['Probably the second-half of a full-width SJIS, figure out how to decode across message boundaries?']])
 		else:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[3, ['Unknown character']])
