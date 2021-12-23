@@ -342,11 +342,23 @@ class Decoder(srd.Decoder):
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[11, ['Unsure']])
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
-				[3, ['Unknown, seems to be sent before 0xC8 text updates']])
+				[3, ['Scroll control?']])
 			
 			self.putStaticByte(bitData, currentBit+8, self.values[3], 0x80)
-			self.putStaticByte(bitData, currentBit+16, self.values[4], 0x02)
-			self.putStaticByte(bitData, currentBit+24, self.values[5], 0x80)
+
+			self.put(bitData[3][currentBit+16][0], bitData[3][currentBit+31][2], self.out_ann,
+				[11, ['Unsure']])
+			self.put(bitData[3][currentBit+16][0], bitData[3][currentBit+31][2], self.out_ann,
+				[9, ['Enable scrolling?']])
+			if (self.values[4] == 0x02) and (self.values[5] == 0x80):
+				self.put(bitData[3][currentBit+16][0], bitData[3][currentBit+31][2], self.out_ann,
+					[3, ['Scrolling: Enabled']])
+			elif (self.values[4] == 0x00) and (self.values[5] == 0x00):
+				self.put(bitData[3][currentBit+16][0], bitData[3][currentBit+31][2], self.out_ann,
+					[3, ['Scrolling: Disabled']])
+			else:
+				self.put(bitData[3][currentBit+16][0], bitData[3][currentBit+31][2], self.out_ann,
+					[10, ['UNRECOGNIZED VALUE']])
 			
 			currentBit += 32
 		elif packetType == 0x05:
