@@ -30,6 +30,9 @@ class Decoder(srd.Decoder):
 		('message-segment-2', 'Finer Message Segment'),
 		('error', 'Error'),
 		('warning', 'Warning'),
+		('data-field-unused', 'Data Field (Unused)'),
+		('data-field-unknown', 'Data Field (Unknown)'),
+		('data-field-static', 'Data Field (Static)'),
 	)
 	annotation_rows = (
 		('informational', 'Informational', (0,)),
@@ -37,7 +40,7 @@ class Decoder(srd.Decoder):
 		('senders', 'Sender', (7,8,)),
 		('message-segments-2', 'Finer Message Segments', (9,)),
 		('values', 'Values', (2,)),
-		('fields', 'Data Fields', (3,6,)),
+		('fields', 'Data Fields', (3,6,12,13,14,)),
 		('debugs', 'Debugs', (4,)),
 		('debugs-two', 'Debugs 2', (5,)),
 		('errors', 'Errors', (10,)),
@@ -134,12 +137,21 @@ class Decoder(srd.Decoder):
 			self.put(valueStart, valueEnd, self.out_ann,
 				[2, ['Value (Low %d bits): 0x%X' % (numBits, value)]])
 			self.debugOutHex += ('0x%X ' % value)
+
+	def putStaticByte(self, bitData, currentBit, value, expectedValue):
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+			[9, ['Static?']])
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+			[13, ['Static?']])
+		if value != expectedValue:
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[10, ['Previously static byte is not expected value!']])
 	
 	def putUnusedByte(self, bitData, currentBit, value, expectedValue):
 		self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 			[9, ['Unused?']])
 		self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
-			[3, ['Unused?']])
+			[12, ['Unused?']])
 		if value != expectedValue:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[10, ['Previously unused byte is not expected value!']])
@@ -147,11 +159,31 @@ class Decoder(srd.Decoder):
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[11, ['Unused byte has non-zero value!']])
 	
+	def putUnusedBits(self, bitData, currentBit, numBits, value, expectedValue):
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit+numBits-1][2], self.out_ann,
+			[9, ['Unused?']])
+		self.put(bitData[3][currentBit][0], bitData[3][currentBit+numBits-1][2], self.out_ann,
+			[12, ['Unused?']])
+		if value != expectedValue:
+			if numBits == 1:
+				self.put(bitData[3][currentBit][0], bitData[3][currentBit+numBits-1][2], self.out_ann,
+					[10, ['Previously unused bit is not expected value!']])
+			else:
+				self.put(bitData[3][currentBit][0], bitData[3][currentBit+numBits-1][2], self.out_ann,
+					[10, ['Previously unused bits are not expected value!']])
+		if value != 0x00:
+			if numBits == 1:
+				self.put(bitData[3][currentBit][0], bitData[3][currentBit+numBits-1][2], self.out_ann,
+					[11, ['Unused bit has non-zero value!']])
+			else:
+				self.put(bitData[3][currentBit][0], bitData[3][currentBit+numBits-1][2], self.out_ann,
+					[11, ['Unused bits have non-zero value!']])
+	
 	def putUnknownByte(self, bitData, currentBit, value):
 		self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 			[9, ['Unknown?']])
 		self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
-			[3, ['Unknown: 0x%02X' % value]])
+			[13, ['Unknown: 0x%02X' % value]])
 		if value != 0x00:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[10, ['Unknown byte has non-zero value!']])
@@ -163,18 +195,42 @@ class Decoder(srd.Decoder):
 			[8, ['Remote', 'R']])
 		self.putValueLSBFirst(bitData, currentBit, 8)
 
+		self.putUnusedBits(bitData, currentBit, 1, (self.values[0] & 0x01), 0)
+
 		if bitData[3][currentBit+1][3] == 1:
 			self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+1][2], self.out_ann,
 				[3, ['Remote is ready for text']])
 		else:
 			self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+1][2], self.out_ann,
 				[6, ['Remote is NOT ready for text']])
+		
+		if bitData[3][currentBit+2][3] == 1:
+			self.put(bitData[3][currentBit+2][0], bitData[3][currentBit+2][2], self.out_ann,
+				[3, ['Remote is EXTRA ready for text?']])
+			self.put(bitData[3][currentBit+2][0], bitData[3][currentBit+2][2], self.out_ann,
+				[10, ['Weird header, look here']])
+		else:
+			self.put(bitData[3][currentBit+2][0], bitData[3][currentBit+2][2], self.out_ann,
+				[6, ['Remote is NOT EXTRA ready for text?']])
+
+		self.putUnusedBits(bitData, currentBit+3, 1, ((self.values[0] & 0x8) >> 3), 0)
+
 		if bitData[3][currentBit+4][3] == 1:
 			self.put(bitData[3][currentBit+4][0], bitData[3][currentBit+4][2], self.out_ann,
 				[3, ['Remote HAS data to send', 'RY']])
 		else:
 			self.put(bitData[3][currentBit+4][0], bitData[3][currentBit+4][2], self.out_ann,
 				[6, ['Remote has NO data to send', 'RN']])
+		
+		self.putUnusedBits(bitData, currentBit+5, 1, ((self.values[0] & 0x20) >> 5), 0)
+
+		if bitData[3][currentBit+6][3] == 1:
+			self.put(bitData[3][currentBit+6][0], bitData[3][currentBit+6][2], self.out_ann,
+				[3, ['Remote IS Kanji-capable?']])
+		else:
+			self.put(bitData[3][currentBit+6][0], bitData[3][currentBit+6][2], self.out_ann,
+				[6, ['Remote is NOT Kanji-capable?']])
+
 		if bitData[3][currentBit+7][3] == 1:
 			self.put(bitData[3][currentBit+7][0], bitData[3][currentBit+7][2], self.out_ann,
 				[3, ['Remote Present', 'RP']])
@@ -192,18 +248,25 @@ class Decoder(srd.Decoder):
 		self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 			[7, ['Player', 'P']])
 		self.putValueLSBFirst(bitData, currentBit, 8)
+
 		if bitData[3][currentBit][3] == 0:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit][2], self.out_ann,
 				[3, ['Player HAS data to send', 'PY']])
 		else:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit][2], self.out_ann,
 				[6, ['Player has NO data to send', 'PN']])
+		
+		self.putUnusedBits(bitData, currentBit+1, 3, ((self.values[1] & 0xE) >> 1), 0)
+
 		if bitData[3][currentBit+4][3] == 1:
 			self.put(bitData[3][currentBit+4][0], bitData[3][currentBit+4][2], self.out_ann,
 				[3, ['Player cedes the bus to remote after header', 'RDB']])
 		else:
 			self.put(bitData[3][currentBit+4][0], bitData[3][currentBit+4][2], self.out_ann,
 				[6, ['Player does NOT cede the bus to remote after header', 'PDB']])
+		
+		self.putUnusedBits(bitData, currentBit+5, 2, ((self.values[1] & 0x60) >> 5), 0)
+
 		self.put(bitData[3][currentBit+7][0], bitData[3][currentBit+7][2], self.out_ann,
 			[3, ['Player Present']])
 	
@@ -261,20 +324,31 @@ class Decoder(srd.Decoder):
 				[9, ['Which block?']])
 			if self.values[3] == 0x01:
 				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
-					[3, ['First block, LCD capabilities?']])
+					[3, ['First block']])
 			elif self.values[3] == 0x02:
 				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
-					[3, ['Second block']])
+					[3, ['Second block, LCD capabilities?']])
 			elif self.values[3] == 0x05:
 				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 					[3, ['Fifth block']])
 			elif self.values[3] == 0x06:
 				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
-					[3, ['Sixth block, serial number and release?']])
+					[3, ['Sixth block?']])
 			else:
 				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 					[10, ['UNRECOGNIZED VALUE']])
 			currentBit += 16
+		elif packetType == 0x03:
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[11, ['Unsure']])
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[3, ['Unknown, seems to be sent before 0xC8 text updates']])
+			
+			self.putStaticByte(bitData, currentBit+8, self.values[3], 0x80)
+			self.putStaticByte(bitData, currentBit+16, self.values[4], 0x02)
+			self.putStaticByte(bitData, currentBit+24, self.values[5], 0x80)
+			
+			currentBit += 32
 		elif packetType == 0x05:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[3, ['LCD Backlight Control']])
@@ -308,6 +382,24 @@ class Decoder(srd.Decoder):
 				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 					[10, ['UNRECOGNIZED VALUE']])
 			currentBit += 16
+		elif packetType == 0x08:
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[11, ['Unsure']])
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[3, ['Unknown, seems to be sent before 0xC8 text updates']])
+			
+			self.putStaticByte(bitData, currentBit+8, self.values[3], 0x80)
+			self.putStaticByte(bitData, currentBit+16, self.values[4], 0x07)
+			self.putStaticByte(bitData, currentBit+24, self.values[5], 0x80)
+			
+			currentBit += 32
+		elif packetType == 0x09:
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[11, ['Unsure']])
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[3, ['Unknown, seems to be sent before 0xC8 text updates, but not always sent']])
+			
+			currentBit += 8
 		elif packetType == 0x40:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[3, ['Volume Level']])
@@ -376,7 +468,10 @@ class Decoder(srd.Decoder):
 				[3, ['Battery Level Indicator']])
 			self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 				[9, ['Battery Level Indicator State']])
-			if self.values[3] == 0x01:
+			if self.values[3] == 0x00:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['Battery Level Indicator: Off']])
+			elif self.values[3] == 0x01:
 				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 					[3, ['Battery Level Indicator: 1/4 bars, blinking']])
 			elif self.values[3] == 0x7F:
@@ -444,13 +539,45 @@ class Decoder(srd.Decoder):
 				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 					[10, ['UNRECOGNIZED VALUE']])
 			currentBit += 16
+		elif packetType == 0x48:
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[11, ['Unsure']])
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[3, ['Unknown, happens near track changes?']])
+
+			currentBit += 8
+		elif packetType == 0x49:
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[11, ['Unsure']])
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[3, ['Unknown, happens 12 packets after a 0x46?']])
+
+			currentBit += 8
+		elif packetType == 0x4A:
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[11, ['Unsure']])
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[3, ['Unknown, happens before 0xC8 text updates?']])
+
+			currentBit += 8
 		elif packetType == 0xA0:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[3, ['Track number']])
+
+			self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+				[9, ['Track Number Indicator Enable']])
+			if self.values[3] == 0x00:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['Track Number Indicator: On']])
+			elif self.values[3] == 0x80:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[3, ['Track Number Indicator: Off']])
+			else:
+				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+					[10, ['UNRECOGNIZED VALUE']])
 			
-			self.putUnusedByte(bitData, currentBit+8, self.values[3], 0x00)
-			self.putUnusedByte(bitData, currentBit+16, self.values[4], 0x00)
-			self.putUnusedByte(bitData, currentBit+24, self.values[5], 0x00)
+			self.putStaticByte(bitData, currentBit+16, self.values[4], 0x00)
+			self.putStaticByte(bitData, currentBit+24, self.values[5], 0x00)
 			
 			self.put(bitData[3][currentBit+32][0], bitData[3][currentBit+39][2], self.out_ann,
 				[9, ['Current Track Number']])
@@ -462,7 +589,7 @@ class Decoder(srd.Decoder):
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[3, ['LCD Disc Icon Control']])
 
-			self.putUnusedByte(bitData, currentBit+8, self.values[3], 0x00)
+			self.putStaticByte(bitData, currentBit+8, self.values[3], 0x00)
 
 			self.put(bitData[3][currentBit+16][0], bitData[3][currentBit+23][2], self.out_ann,
 				[9, ['LCD Disc Icon Outline']])
@@ -510,15 +637,23 @@ class Decoder(srd.Decoder):
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[11, ['Unsure']])
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
-				[3, ['Track number, just changed track?']])
-			self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+				[3, ['Unknown, happens near track changes?']])
+
+			self.putStaticByte(bitData, currentBit+8, self.values[3], 0x01)
+			self.putStaticByte(bitData, currentBit+16, self.values[4], 0x01)
+			self.putStaticByte(bitData, currentBit+24, self.values[5], 0x7F)
+
+			currentBit += 32
+		elif packetType == 0xA5:
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[11, ['Unsure']])
-			self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
-				[9, ['New track number?']])
-			self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
-				[3, ['New Track number: %d' % self.values[3]]])
-			self.putUnknownByte(bitData, currentBit+16, self.values[4])
-			self.putUnknownByte(bitData, currentBit+24, self.values[5])
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[3, ['Unknown, happens after initialization?']])
+
+			self.putStaticByte(bitData, currentBit+8, self.values[3], 0x01)
+			self.putStaticByte(bitData, currentBit+16, self.values[4], 0x76)
+			self.putStaticByte(bitData, currentBit+24, self.values[5], 0x81)
+
 			currentBit += 32
 		elif packetType == 0xC8:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
@@ -538,7 +673,7 @@ class Decoder(srd.Decoder):
 				self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 					[10, ['UNRECOGNIZED VALUE']])
 				
-			self.putUnusedByte(bitData, currentBit+16, self.values[4], 0x00)
+			self.putStaticByte(bitData, currentBit+16, self.values[4], 0x00)
 
 			splicedValues = self.values[5:12]
 			self.put(bitData[3][currentBit+24][0], bitData[3][currentBit+31][2], self.out_ann,
@@ -573,7 +708,7 @@ class Decoder(srd.Decoder):
 			self.put(bitData[3][currentBit][0], bitData[3][95][2], self.out_ann,
 				[9, ['Segment not used by recognized message types']])
 			self.put(bitData[3][currentBit][0], bitData[3][95][2], self.out_ann,
-				[3, ['Segment not used by recognized message types']])
+				[12, ['Segment not used by recognized message types']])
 		
 		while currentBit < 96:
 			if self.values[int(currentBit/8)] == 0x00:
@@ -642,13 +777,8 @@ class Decoder(srd.Decoder):
 			if self.values[3] == 0x01:
 				self.put(bitData[3][currentBit+10][0], bitData[3][currentBit+17][2], self.out_ann,
 					[3, ['First block, LCD capabilities?']])
-				self.put(bitData[3][currentBit+19][0], bitData[3][currentBit+26][2], self.out_ann,
-					[11, ['Unsure']])
-				self.put(bitData[3][currentBit+19][0], bitData[3][currentBit+26][2], self.out_ann,
-					[9, ['Characters displayed?']])
-				self.put(bitData[3][currentBit+19][0], bitData[3][currentBit+26][2], self.out_ann,
-					[3, ['Characters displayed: %d' % self.values[4]]])
-
+				
+				self.putUnknownByte(bitData, currentBit+19, self.values[4])
 				self.putUnknownByte(bitData, currentBit+28, self.values[5])
 				self.putUnknownByte(bitData, currentBit+37, self.values[6])
 				self.putUnknownByte(bitData, currentBit+46, self.values[7])
@@ -674,8 +804,14 @@ class Decoder(srd.Decoder):
 			elif self.values[3] == 0x02:
 				self.put(bitData[3][currentBit+10][0], bitData[3][currentBit+17][2], self.out_ann,
 					[3, ['Second block?']])
-				
-				self.putUnknownByte(bitData, currentBit+19, self.values[4])
+
+				self.put(bitData[3][currentBit+19][0], bitData[3][currentBit+26][2], self.out_ann,
+					[11, ['Unsure']])
+				self.put(bitData[3][currentBit+19][0], bitData[3][currentBit+26][2], self.out_ann,
+					[9, ['Characters displayed?']])
+				self.put(bitData[3][currentBit+19][0], bitData[3][currentBit+26][2], self.out_ann,
+					[3, ['Characters displayed: %d' % self.values[4]]])
+
 				self.putUnknownByte(bitData, currentBit+28, self.values[5])
 				self.putUnknownByte(bitData, currentBit+37, self.values[6])
 				self.putUnknownByte(bitData, currentBit+46, self.values[7])
@@ -711,7 +847,7 @@ class Decoder(srd.Decoder):
 			self.put(bitData[3][currentBit][0], bitData[3][105][2], self.out_ann,
 				[9, ['Segment not used by recognized message types']])
 			self.put(bitData[3][currentBit][0], bitData[3][105][2], self.out_ann,
-				[3, ['Segment not used by recognized message types']])
+				[12, ['Segment not used by recognized message types']])
 		
 		while currentBit < 106:
 			if self.values[int(2+((currentBit-16)/9))] == 0x00:
