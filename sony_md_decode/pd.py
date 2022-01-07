@@ -848,12 +848,14 @@ class Decoder(srd.Decoder):
 				[12, ['Segment not used by recognized message types']])
 		
 		while currentBit < 96:
-			if self.values[int(currentBit/8)] == 0x00:
+			if self.values[currentByte] == 0x00:
 				currentBit += 8
+				currentByte += 1
 			else:
 				self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 					[10, ['Unclaimed byte is nonzero!']])
 				currentBit += 8
+				currentByte += 1
 	
 	def putPlayerDataBlock(self, bitData, currentBit):
 		#put up basic data about the message segment
