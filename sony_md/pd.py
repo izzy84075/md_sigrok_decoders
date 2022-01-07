@@ -252,23 +252,23 @@ class Decoder(srd.Decoder):
 		self.presyncMaximumCycles = int(self.presyncCycles * (1+(self.marginpct*0.01)))
 
 		self.presyncDelayCycles = int(self.samplerate * (950/1000000))
-		self.presyncDelayMinimumCycles = int(self.presyncDelayCycles * (1-(self.marginpct*0.01)))
-		self.presyncDelayMaximumCycles = int(self.presyncDelayCycles * (1+(self.marginpct*0.01)))
+		self.presyncDelayMinimumCycles = int(self.samplerate * (800/1000000))
+		self.presyncDelayMaximumCycles = int(self.samplerate * (1500/1000000))
 
 		self.syncCycles = int(self.samplerate * (220/1000000))
-		self.syncMinimumCycles = int(self.syncCycles * (1-(self.marginpct*0.01)))
+		self.syncMinimumCycles = int(self.samplerate * (20/1000000))
 		self.syncMaximumCycles = int(self.syncCycles * (1+(self.marginpct*0.01)))
 
 		self.bitDelayHighIdealCycles = int(self.samplerate * (32.5/1000000))
 		self.bitDelayHighCyclesMinimum = int(self.bitDelayHighIdealCycles * (1-(self.marginpct*0.01)))
 
 		self.shortMessageDataLongCycles = int(self.samplerate * (220/1000000))
-		self.shortMessageDataLongCyclesMinimum = int(self.samplerate * (150/1000000))
-		self.shortMessageDataLongCyclesMaximum = int(self.samplerate * (240/1000000))
+		self.shortMessageDataLongCyclesMinimum = int(self.samplerate * (101/1000000))
+		self.shortMessageDataLongCyclesMaximum = int(self.samplerate * (280/1000000))
 
 		self.shortMessageDataShortCycles = int(self.samplerate * (17/1000000))
 		self.shortMessageDataShortCyclesMinimum = int(self.samplerate * (10/1000000))
-		self.shortMessageDataShortCyclesMaximum = int(self.samplerate * (30/1000000))
+		self.shortMessageDataShortCyclesMaximum = int(self.samplerate * (100/1000000))
 
 		self.extendedMessageTimeoutCycles = int(self.samplerate *(5/1000))
 		#self.extendedMessageTimeoutCyclesSkip = self.extendedMessageTimeoutCycles + 50
