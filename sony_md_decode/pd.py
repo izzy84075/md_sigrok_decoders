@@ -137,6 +137,8 @@ class Decoder(srd.Decoder):
 			self.put(valueStart, valueEnd, self.out_ann,
 				[2, ['Value (Low %d bits): 0x%X' % (numBits, value)]])
 			self.debugOutHex += ('0x%X ' % value)
+		
+		return value
 
 	def putStaticByte(self, bitData, currentBit, value, expectedValue):
 		self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
@@ -749,9 +751,14 @@ class Decoder(srd.Decoder):
 		self.putValueLSBFirst(bitData, currentBit+72, 8)
 		self.put(bitData[3][currentBit+80][0], bitData[3][currentBit+87][2], self.out_ann,
 			[9, ['Checksum']])
-		self.put(bitData[3][currentBit+80][0], bitData[3][currentBit+87][2], self.out_ann,
-			[3, ['Checksum, calculated value 0x%02X' % self.checksum]])
-		self.putValueLSBFirst(bitData, currentBit+80, 8)
+		tempCalcedChecksum = self.checksum
+		tempReceivedChecksum = self.putValueLSBFirst(bitData, currentBit+80, 8)
+		if tempCalcedChecksum == tempReceivedChecksum:
+			self.put(bitData[3][currentBit+80][0], bitData[3][currentBit+87][2], self.out_ann,
+				[3, ['Checksum, calculated value 0x%02X, valid!' % tempCalcedChecksum]])
+		else:
+			self.put(bitData[3][currentBit+80][0], bitData[3][currentBit+87][2], self.out_ann,
+				[6, ['Checksum, calculated value 0x%02X, invalid!' % tempCalcedChecksum]])
 
 		self.expandPlayerDataBlock(bitData, currentBit, self.values[2])
 	
