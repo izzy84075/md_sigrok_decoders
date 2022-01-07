@@ -297,18 +297,27 @@ class Decoder(srd.Decoder):
 		if index in twoByteStartIndices:
 			if nextValue is None:
 				self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
-					[3, ['First byte of 2-byte SJIS sequence']])
+					[3, ['First byte of 2-byte SJIS sequence, see next message for remainder and decode.']])
+				self.tempCarryoverShiftJISByte = value
 			else:
+				self.tempCarryoverShiftJISByte = 0
 				self.put(bitData[3][currentBit][0], bitData[3][currentBit+15][2], self.out_ann,
 					[3, [bytes([value, nextValue]).decode('sjis')]])
+		elif self.tempCarryoverShiftJISByte != 0:
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[3, [bytes([self.tempCarryoverShiftJISByte, value]).decode('sjis')]])
+			self.tempCarryoverShiftJISByte = 0
+			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+				[11, ['This is the second-half of a full-width SJIS, taking the first half from the previous message.']])
 		elif isPrintable(value):
+			self.tempCarryoverShiftJISByte = 0
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[3, [bytes([value]).decode('sjis')]])
 		elif isSJISHalfKata(value):
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[3, ['SJIS half-width katakana - shouldn\'t be possible']])
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
-				[11, ['Probably the second-half of a full-width SJIS, figure out how to decode across message boundaries?']])
+				[11, ['Probably the second-half of a full-width SJIS, missed the previous message with the first half?']])
 		else:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 				[3, ['Unknown character']])
@@ -1065,6 +1074,8 @@ class Decoder(srd.Decoder):
 		self.values = []
 
 		self.checksum = 0
+
+		self.tempCarryoverShiftJISByte = 0
 
 		self.debugOutHex = ""
 		self.debugOutBinary = ""
