@@ -208,12 +208,12 @@ class Decoder(srd.Decoder):
 		
 		if bitData[3][currentBit+2][3] == 1:
 			self.put(bitData[3][currentBit+2][0], bitData[3][currentBit+2][2], self.out_ann,
-				[3, ['Remote is EXTRA ready for text?']])
+				[3, ['Remote is done scrolling text?']])
 			self.put(bitData[3][currentBit+2][0], bitData[3][currentBit+2][2], self.out_ann,
-				[10, ['Weird header, look here']])
+				[9, ['Weird header, look here']])
 		else:
 			self.put(bitData[3][currentBit+2][0], bitData[3][currentBit+2][2], self.out_ann,
-				[6, ['Remote is NOT EXTRA ready for text?']])
+				[6, ['Remote is NOT done scrolling text?']])
 
 		self.putUnusedBits(bitData, currentBit+3, 1, ((self.values[0] & 0x8) >> 3), 0)
 
