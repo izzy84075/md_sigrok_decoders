@@ -359,6 +359,9 @@ class Decoder(srd.Decoder):
 					elif self.values[currentByte+1] == 0x06:
 						self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 							[3, ['Sixth block?']])
+					elif self.values[currentByte+1] == 0x7F:
+						self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+							[3, ['Unknown, seen from D-EJ955']])
 					else:
 						self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 							[10, ['UNRECOGNIZED VALUE']])
@@ -472,6 +475,17 @@ class Decoder(srd.Decoder):
 						[11, ['Unsure']])
 					self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
 						[3, ['Unknown, seems to be sent before 0xC8 text updates, but not always sent']])
+					
+					currentBit += 8
+					currentByte += 1
+				elif self.values[currentByte] == 0x18:
+					self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+						[15, ['Unsure, seems to get a response from remote? Seen from D-EJ955']])
+
+					self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+						[11, ['Unsure']])
+					self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+						[3, ['Unsure, seems to get a response from remote? Seen from D-EJ955']])
 					
 					currentBit += 8
 					currentByte += 1
@@ -592,6 +606,16 @@ class Decoder(srd.Decoder):
 					else:
 						self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
 							[10, ['UNRECOGNIZED VALUE']])
+
+					currentBit += (2*8)
+					currentByte += 2
+				elif self.values[currentByte] == 0x44:
+					self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+						[11, ['Unsure']])
+					self.put(bitData[3][currentBit][0], bitData[3][currentBit+15][2], self.out_ann,
+						[15, ['Unknown, presumably an indicator control. Seen from D-EJ955.']])
+					
+					self.putStaticByte(bitData, currentBit+8, self.values[currentByte+1], 0x00)
 
 					currentBit += (2*8)
 					currentByte += 2
@@ -781,6 +805,22 @@ class Decoder(srd.Decoder):
 
 					currentBit += (5*8)
 					currentByte += 5
+				elif self.values[currentByte] == 0xA3:
+					self.put(bitData[3][currentBit][0], bitData[3][currentBit+39][2], self.out_ann,
+						[15, ['Unknown, seen from D-EJ955']])
+					
+					self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+						[3, ['Unknown, seen from D-EJ955']])
+					self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+						[11, ['Unsure']])
+
+					self.putStaticByte(bitData, currentBit+8, self.values[currentByte+1], 0x00)
+					self.putStaticByte(bitData, currentBit+16, self.values[currentByte+2], 0x00)
+					self.putStaticByte(bitData, currentBit+24, self.values[currentByte+3], 0xFF)
+					self.putStaticByte(bitData, currentBit+32, self.values[currentByte+4], 0xFF)
+
+					currentBit += (5*8)
+					currentByte += 5
 				elif self.values[currentByte] == 0xA5:
 					self.put(bitData[3][currentBit][0], bitData[3][currentBit+31][2], self.out_ann,
 						[15, ['Unknown, happens after initialization?']])
@@ -796,6 +836,36 @@ class Decoder(srd.Decoder):
 
 					currentBit += (4*8)
 					currentByte += 4
+				elif self.values[currentByte] == 0xC0:
+					self.put(bitData[3][currentBit][0], bitData[3][currentBit+79][2], self.out_ann,
+						[15, ['Player capabilities?']])
+					self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+						[11, ['Unsure']])
+					self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
+						[3, ['Player capabilities?']])
+
+					self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+						[11, ['Unsure']])
+					self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+						[9, ['Which block?']])
+					if self.values[currentByte+1] == 0x05:
+						self.put(bitData[3][currentBit+8][0], bitData[3][currentBit+15][2], self.out_ann,
+							[3, ['Fifth block?']])
+						
+						self.putUnknownByte(bitData, currentBit+16, self.values[currentByte+2])
+						self.putUnknownByte(bitData, currentBit+24, self.values[currentByte+3])
+						self.putUnknownByte(bitData, currentBit+32, self.values[currentByte+4])
+						self.putUnknownByte(bitData, currentBit+40, self.values[currentByte+5])
+						self.putUnknownByte(bitData, currentBit+48, self.values[currentByte+6])
+						self.putUnknownByte(bitData, currentBit+56, self.values[currentByte+7])
+						self.putUnknownByte(bitData, currentBit+64, self.values[currentByte+8])
+						self.putUnknownByte(bitData, currentBit+72, self.values[currentByte+9])
+					else:
+						self.put(bitData[3][currentBit+10][0], bitData[3][currentBit+17][2], self.out_ann,
+							[10, ['UNRECOGNIZED VALUE']])
+					
+					currentBit += (10*8)
+					currentByte += 10
 				elif self.values[currentByte] == 0xC8:
 					self.put(bitData[3][currentBit][0], bitData[3][currentBit+79][2], self.out_ann,
 						[15, ['LCD Text']])
