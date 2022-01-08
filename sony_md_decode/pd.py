@@ -1055,7 +1055,10 @@ class Decoder(srd.Decoder):
 		if (bitData[3][8][3] == 0) and (bitData[3][12][3] == 0):
 			self.putPlayerDataBlock(bitData, currentBit)
 			currentBit += 88
-		elif (bitData[3][4][3] == 1) and (bitData[3][12][3] == 1):
+		elif (bitData[3][12][3] == 1):
+			if (bitData[3][4][3] == 0):
+				self.put(bitData[3][12][0], bitData[3][12][2], self.out_ann,
+					[10, ['Player ceded bus to Remote without Remote asking!']])
 			self.putRemoteDataBlock(bitData, currentBit)
 			currentBit += 99
 

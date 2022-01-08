@@ -166,6 +166,10 @@ class Decoder(srd.Decoder):
 		self.put(self.databitstart, self.databitend, self.out_ann,
 				[0, ['Player does NOT cede bus to Remote', 'PDB']])
 	
+	def putPlayerCededBusWithoutRemoteAsking(self):
+		self.put(self.databitstart, self.databitend, self.out_ann,
+				[7, ['Player ceded bus to Remote without Remote asking!']])
+	
 	def putZeroBit(self):
 		self.messageBitData.append([self.databitstart, self.lastedgesample, self.databitend, 0])
 		self.dataBitCount = self.dataBitCount + 1
@@ -351,7 +355,9 @@ class Decoder(srd.Decoder):
 					if self.dataBitCount == 13:
 						self.putPlayerCedesBusToRemote()
 						self.playerCedesBus = True
-						if self.remoteHasData and self.playerCedesBus:
+						if self.playerCedesBus:
+							if not self.remoteHasData:
+								self.putPlayerCededBusWithoutRemoteAsking()
 							self.expectedBitCount = 115
 						elif self.playerHasData and not self.playerCedesBus:
 							self.expectedBitCount = 104
@@ -378,7 +384,9 @@ class Decoder(srd.Decoder):
 
 					if self.dataBitCount == 13:
 						self.putPlayerDoesNotCedeBusToRemote()
-						if self.remoteHasData and self.playerCedesBus:
+						if self.playerCedesBus:
+							if not self.remoteHasData:
+								self.putPlayerCededBusWithoutRemoteAsking()
 							self.expectedBitCount = 115
 						elif self.playerHasData and not self.playerCedesBus:
 							self.expectedBitCount = 104
