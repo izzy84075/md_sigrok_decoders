@@ -901,7 +901,7 @@ class Decoder(srd.Decoder):
 			[7, ['Player', 'P']])
 		self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+8][2], self.out_ann,
 			[8, ['Remote', 'R']])
-		self.putValueLSBFirst(bitData, currentBit+1, 8)
+		return self.putValueLSBFirst(bitData, currentBit+1, 8)
 
 	def expandRemoteDataBlock(self, bitData, currentBit, packetType):
 		self.put(bitData[3][currentBit+1][0], bitData[3][currentBit+8][2], self.out_ann,
@@ -1026,9 +1026,14 @@ class Decoder(srd.Decoder):
 		self.putRemoteDataBlockTransfer(bitData, currentBit+81)
 		self.put(bitData[3][currentBit+91][0], bitData[3][currentBit+98][2], self.out_ann,
 			[9, ['Checksum']])
-		self.put(bitData[3][currentBit+91][0], bitData[3][currentBit+98][2], self.out_ann,
-			[3, ['Checksum, calculated value 0x%02X' % self.checksum]])
-		self.putRemoteDataBlockTransfer(bitData, currentBit+90)
+		tempCalcedChecksum = self.checksum
+		tempReceivedChecksum = self.putRemoteDataBlockTransfer(bitData, currentBit+90)
+		if tempCalcedChecksum == tempReceivedChecksum:
+			self.put(bitData[3][currentBit+91][0], bitData[3][currentBit+98][2], self.out_ann,
+				[3, ['Checksum, calculated value 0x%02X, valid!' % tempCalcedChecksum]])
+		else:
+			self.put(bitData[3][currentBit+91][0], bitData[3][currentBit+98][2], self.out_ann,
+				[6, ['Checksum, calculated value 0x%02X, invalid!' % tempCalcedChecksum]])
 
 		self.expandRemoteDataBlock(bitData, currentBit, self.values[2])
 
