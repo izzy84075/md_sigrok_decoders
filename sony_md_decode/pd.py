@@ -919,6 +919,7 @@ class Decoder(srd.Decoder):
 						[10, ['UNRECOGNIZED VALUE']])
 					currentBit += 8
 					currentByte += 1
+					notDone = False
 
 		if currentBit < 96:
 			self.put(bitData[3][currentBit][0], bitData[3][95][2], self.out_ann,
