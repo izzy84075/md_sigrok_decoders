@@ -149,7 +149,7 @@ class Decoder(srd.Decoder):
 			[13, ['Static?']])
 		if value != expectedValue:
 			self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
-				[10, ['Previously static byte is not expected value!']])
+				[10, ['Previously static, expected 0x%02X!' % expectedValue]])
 	
 	def putUnusedByte(self, bitData, currentBit, value, expectedValue):
 		self.put(bitData[3][currentBit][0], bitData[3][currentBit+7][2], self.out_ann,
